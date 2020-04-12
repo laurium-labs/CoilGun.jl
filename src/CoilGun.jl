@@ -1,4 +1,4 @@
-module CoilGun
+amodule CoilGun
 using Unitful:Ω, m, cm, kg, g, A, N, Na,ustrip, T, s, μ0, ϵ0, Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance,
      BField, Volume, Area, k, J, K, mol, Current, HField, MagneticDipoleMoment, me, q, ħ, μB, Density, mm
 using ForwardDiff
@@ -204,7 +204,7 @@ function dipoleCoilForce(positonAlongProjectile::Matrix{Int}, proj::Projectile, 
     coilEdgeToProjEdge = proj.position - (coil.length+proj.physical.length)/2
     heightDifference = meanMagneticRadius(coil) - proj.position
     magneticMoment = proj.magnetic.magnetization * magDomainVol(proj) * real(proj.magnetic.domains[positonAlongProjectile][1])
-    return  magneticMoment * (∇bField.amplitude[positonAlongProjectile[1]] * heightDifference/sqrt(heightDifference^2+coilEdgeToProjEdge^2)
+    return  magneticMoment * (∇bField.amplitude[positonAlongProjectile[1]] * heightDifference/sqrt(heightDifference^2+coilEdgeToProjEdge^2))
 end
 
 function projectileCoilTotalForce(coil::Coil,proj::Projectile,∇bField::BFieldGradient)
@@ -212,7 +212,7 @@ function projectileCoilTotalForce(coil::Coil,proj::Projectile,∇bField::BFieldG
     totalForce = sum(dipoleCoilForce([z,ρ],proj,coil,∇bField)  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
 end
 export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, wireArea, wireVolume, wireMass, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagDomainProjectile, MagneticDipoleVector
-end #module
+#module
 
 """
 Reminder: The pearmeability inside the coil is dependent upon the projectile's position, and the magnetic field from the coil acts differently inside the projectile
