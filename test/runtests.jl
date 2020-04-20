@@ -20,7 +20,7 @@ const μ = μ0*(1+χFe)                                        #Magnetic pearmea
 const α = 9.5e-5                                            #Interdomain Coupling Factor (for an iron transformer)
 const roomTemp = 300K                                       #Standard room Tempearture
 const domainPinningFactor = 150A/m                          #This is the domain pinning factor for Iron (transformer)
-const domainMagnetization = numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
+const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
 const simplifiedMagMoment = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
 const saturationMagnetizationPerKgFe = 217.6A/(m*kg)             #Saturation magnetizaiton of pure Iron per unit mass.
 #const meanMagneticRadius = 6.2438mm |> m                    #Radial position where the average magnetic field from the coils is located
@@ -58,43 +58,21 @@ ip = IronProjectile(phys,mag,position)
 bar = Barrel(ip.physical.radius,bthickness,blength)
 coil = Coil(bar.innerRadius+bar.thickness,cthickness,ip.physical.length,wirerad)
 
-volume(ip)
-mass(ip)
-density(ip)
-magDomainVol(ip)
-saturationMagnetizationFe(ip)
-#bFieldGradient(z,ρ,bField)
-
-#Below are functions associated with the Coil and wire
-numberWindings(coil)
-numberLayers(coil)
-totalNumberWindings(coil)
-wireLength(coil)
-wireArea(coil)
-wireVolume(coil)
-wireMass(coil)
-resistance(coil)
-coilCrossSectionalArea(coil)
-meanMagneticRadius(coil)
-
-
-
-
-
-
-
-
-
-
-
-# """
-# When calculating the magnetic field given off from the coil, remember to have the step size similar to the domain size in the projectile.
-# """
-# radii = map(step -> step * (coil.length*3/2) / stepSize , 1:stepSize)
+"""
+When calculating the magnetic field given off from the coil, remember to have the step size similar to the domain size in the projectile.
+"""
+radii = map(step -> step * (coil.length*3/2) / stepSize , 1:stepSize)
 # bFieldSummation = map(radii) do positionFromCoil
 #     return magneticFieldSummation(coil, I, positionFromCoil) |>ustrip
 # end
 
-# bFieldIntegration = map(radii) do positionFromCoil
-#     return magneticFieldIntegration(coil, I, positionFromCoil)
-# end
+bFieldIntegration = map(radii) do positionFromCoil
+    return magneticFieldIntegration(coil, I, positionFromCoil)
+end
+
+langevin(ip, bFieldIntegration[7], 0)
+langevin(ip, bFieldIntegration[7], 1)
+langevin(ip, bFieldIntegration[7], 2)
+
+magnetization(ip, bFieldIntegration[7], 1)
+closingFunction(0A/m, 10A/m, ip, bFieldIntegration[7], 0T)

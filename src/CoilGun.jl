@@ -19,7 +19,7 @@ const χFe = 200_000                                         #Magnetic susceptib
 const μ = μ0*(1+χFe)                                        #Magnetic pearmeability of iron
 const α = 9.5e-5                                            #Interdomain Coupling Factor (for an iron transformer)
 const roomTemp = 300K                                       #Standard room Tempearture
-const domainPinningFactor = 150A/m                          #This is the domain pinning factor for Iron (transformer)
+const domainPinningFactor = 150                          #This is the domain pinning factor for Iron (transformer)
 const domainMagnetization = numberAtomsperDomainFe*bohrMagnetonPerAtomFe  #Magnetization of the domain
 const simplifiedMagMoment = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
 const saturationMagnetizationPerKgFe = 217.6A*m^2/kg             #Saturation magnetizaiton of pure Iron per unit mass.
@@ -29,12 +29,6 @@ abstract type Projectile end
 abstract type Physical end
 abstract type ElectroMagnetic end
 
-mutable struct IronProjectile <: Projectile
-    physical::Physical
-    magnetic::ElectroMagnetic
-    position::Length       #This position is determined from the center of the coil to the center of the projectile
-    #(I sense there'll be a problem when I try to incorperate multiple coils, but for now this is it).
-end
 struct MagneticDipoleVector
     angle::Complex{Float64}
     magnitude::BField #Using cylindrical coordindates
@@ -54,6 +48,12 @@ mutable struct ProjectileMagnetic <: ElectroMagnetic
     saturationMagnetization::HField
     domains :: Matrix{MagneticDipoleVector}
     magField :: BField
+end
+mutable struct IronProjectile <: Projectile
+    physical::Physical
+    magnetic::ElectroMagnetic
+    position::Length       #This position is determined from the center of the coil to the center of the projectile
+    #(I sense there'll be a problem when I try to incorperate multiple coils, but for now this is it).
 end
 mutable struct NickelProjectile <: Projectile
     physical::ProjectilePhysical
@@ -106,31 +106,34 @@ end
 #Reminder: The point starts in middle of the coil, then moves outward and goes through the front of the coil. When intPostion = coilLength it's at CoilFront.
 function magneticFieldIntegration(coil::Coil, current::Current, integrationPositon::Length) :: BField
     coilInnerRadius = coil.innerRadius
-    coilOuterRadius = coil.innerRadius + coil.thickness
-    crossSectionalArea = coilCrossSectionalArea(coil)
-    distToCoilBack = integrationPositon + coil.length/2
-    distToCoilFront = distToCoilBack - coil.length
+    coilOuterRadius = coilInnerRadius + coil.thickness
     constant = μ0*totalNumberWindings(coil)*current/4
-    logarithm(coilPosition::Length,radialLength::Length) = log((coilPosition |> m |> ustrip)^2+(radialLength |> m |> ustrip)^2)
-    arctan(coilPosition::Length,radialLength::Length) = atan(((coilPosition |> m) / (radialLength |> m))|>ustrip)
-    ∫_radial(radialLength::Length) = 
-        distToCoilBack  * logarithm(distToCoilBack,radialLength) - 
-        distToCoilFront * logarithm(distToCoilFront,radialLength)+
-        (distToCoilBack-distToCoilFront) + 2 * radialLength * 
-        (arctan(distToCoilBack,radialLength) - 
-        arctan(distToCoilFront,radialLength))
-    return (constant * (∫_radial(coilOuterRadius) - ∫_radial(coilInnerRadius)) / crossSectionalArea) |> T
+    function lengthIntegration(integrationPositon::Length)
+        distToCoilBack = integrationPositon + coil.length/2
+        distToCoilFront = distToCoilBack - coil.length
+        logarithm(coilPosition::Length,radialLength::Length) = log((coilPosition |> m |> ustrip)^2+(radialLength |> m |> ustrip)^2)
+        arctan(coilPosition::Length,radialLength::Length) = atan(((coilPosition |> m) / (radialLength |> m))|>ustrip)
+        ∫_radial(radialLength::Length) = 
+            distToCoilBack  * logarithm(distToCoilBack,radialLength) - 
+            distToCoilFront * logarithm(distToCoilFront,radialLength) +
+            (distToCoilBack-distToCoilFront) + 2 * radialLength * 
+            (arctan(distToCoilBack,radialLength) - 
+            arctan(distToCoilFront,radialLength))
+        return ∫_radial(coilOuterRadius) - ∫_radial(coilInnerRadius)
+    end
+    return (constant * lengthIntegration(integrationPositon) / coilCrossSectionalArea(coil)) |> T
 end
 function magneticFieldIntegration(coil::Coil, current::Current, coilPosition::Length, globalPosition::Length) :: BField
     magneticFieldIntegration(coil, current, coilPosition - globalPosition)
 end
+
 
 #This needs to create a gradient of the BField along the integreation range.
 function generateBFieldGradient(coil::Coil,current::Current,proj::Projectile)
     integrationRange = 3*coil.length/2
     avgMagField = meanMagneticRadius(coil)
     dx = proj.magnetic.domainSize
-    coilPosition = 0:dx:integrationRange
+    coilPosition = 0m:dx:integrationRange
     return BFieldGradient(coilPosition -> ForwardDiff.gradient(magneticFieldIntegration, coilPosition))
 end
 """
@@ -150,7 +153,7 @@ Here is where the magnetic moment of the domains is oriented with reference to t
 """
 function updateDomain(ironproj::Projectile,coil::Coil,bField::BField)
     projLengthSize,radialLengthSize = size(ironproj.magnetic.domains)
-    coilEdgeToProjEdge = ironproj.physical.position - (coil.length+ironproj.physical.length)/2
+    coilEdgeToProjEdge = ironproj.position - (coil.length+ironproj.physical.length)/2
     Δρ = ironproj.physical.radius/radialLengthSize
     Δz =ironproj.physical.length/projLengthSize
 
@@ -161,8 +164,8 @@ function updateDomain(ironproj::Projectile,coil::Coil,bField::BField)
             zAxis = z*Δz+coilEdgeToProjEdge
             saturationAngle = atan(zAxis/ρAxis)+pi/2   #The MagneticDipoleVector must be pointed tangently from the meanMagneticRadius. There's probably a more efficient way to calculate this angle.
             #What is being done here is i'm checking the orientation of the current magnetization, comparing it to the angle it would be at if the rod were fully saturated, and deciding which way from the saturation angle the new angle should be pointing.
-            δ = ironproj.magnetic.domains[z,ρ][1]-saturationAngle > pi ? 1 : -1 #Ask Brent if calling the specific angle is correct
-            actualAngle = saturationAngle + acos(ironproj.magnetic.magnetization/saturationMagnetizationFe(ironproj)) * δ
+            δ = asin(imag(ironproj.magnetic.domains[z,ρ].angle))-saturationAngle > pi ? 1 : -1 #Ask Brent if calling the specific angle is correct
+            actualAngle = saturationAngle + acos((ironproj.magnetic.magnetization/saturationMagnetizationFe(ironproj)) |> ustrip) * δ
             #This actual angle is accounting for domain wall movement and pinning and is based off of the B-H curve for magnetization of a ferromaterial.
             θ = abs(zAxis) > coil.length/2 ? actualAngle : 0
             ironproj.magnetic.domains[z,ρ] = MagneticDipoleVector(exp(θ*im),ironproj.magnetic.magneticStrengthperDomain)
@@ -171,28 +174,31 @@ function updateDomain(ironproj::Projectile,coil::Coil,bField::BField)
     return ironproj.magnetic.domains
 end
 
-function langevin(ironProj::Projectile, bField::BField, derivative::Int32)::Float64
-    a = k*roomTemp/ironProj.magnetic.magMoment                      #Constant
+function langevin(ironProj::Projectile, bField::BField, derivative::Int64)::Float64
+    a = k*roomTemp/ironProj.magnetic.magneticMoment                 #Constant
     effectiveBField = bField+μ0*α*ironProj.magnetic.magnetization   #The effective B field is the B field experienced by the element
-    x = effectiveBField/a                                           #Variable
-    mag = magnetization(x) = coth(x)-1/x
+    x = effectiveBField/a |> ustrip                                 #Variable
+    magnetization(x) = coth(x)-1/x
     if derivative > 0
-        for i in 1:derivative
-            mag = ForwardDiff.derivative(mag,x)
+        mag(x) = ForwardDiff.derivative(magnetization,x)
+        if derivative > 1
+            mag2(x) = ForwardDiff.derivative(mag,x)
+            return mag2(x)
         end
+        return mag(x)
     end
-    return mag
+    return magnetization(x)
 end
 #This funciton is the basic funciton that the closing function and the effective magnetism is built out of. There are a couple different types: The normal funciton where theere are no special parameters, the reversal function that is the magnetization of the reversal point, the last magnetization which is the previous magnetization point, the + magnetization where the change in mag is positive, and correspondingly the - mag where the change is negative. This will have to be performed at each element of the projectile.
-function magnetization(ironproj::Projectile, magField::BField, δ::Number)
-    return langevin(ironproj, magField, 0)-domainPinningFactor*δ*langevin(ironproj, magField, 1)+domainPinningFactor^2*langevin(ironproj, magField, 2)
+function magnetization(ironproj::Projectile, magField::BField, δ::Int)
+    return ironproj.magnetic.saturationMagnetization * (langevin(ironproj, magField, 0)-domainPinningFactor*δ*langevin(ironproj, magField, 1)+domainPinningFactor^2*langevin(ironproj, magField, 2))
 end
 #########################################I'm really curious if the domainPinningFactor is unitless or not!
 
 #The closing function insures that the B-H curve in the projectile has fixed endpoints and loops around that.
 #The minimum and maximum magnetization points correspond to the max and min HFields that the point will experience.
 function closingFunction(magnetizationMinimum::HField, magnetizationMaximum::HField, proj::Projectile, bField::BField, prevMagField::BField)::Float64
-    if (bField - prevMagField) >= 0
+    if (bField - prevMagField) >= 0T
         δplus = 1
         δminus = 0
     else
