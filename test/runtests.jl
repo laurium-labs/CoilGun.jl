@@ -70,9 +70,15 @@ bFieldIntegration = map(radii) do positionFromCoil
     return magneticFieldIntegration(coil, I, positionFromCoil)
 end
 
-langevin(ip, bFieldIntegration[7], 0)
-langevin(ip, bFieldIntegration[7], 1)
-langevin(ip, bFieldIntegration[7], 2)
+magmin = 0A/m
+magmax = 1A/m
+bf = 0.3T
+pbf = 0.2T
+mem = [0T, 1T, 0.2T]
+mem = Array{BField,1}(mem)
+closingFunction(magmin,magmax,ip,bf,pbf)
+generateMagneticDomians(ip)
+effectiveMagnetization(ip, bf, mem)
 
-magnetization(ip, bFieldIntegration[7], 1)
-closingFunction(0A/m, 10A/m, ip, bFieldIntegration[7], 0T)
+bfg = BFieldGradient([0.2T])
+dipoleCoilForce([12,14], ip, coil, 1T, bfg)
