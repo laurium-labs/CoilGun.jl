@@ -1,8 +1,7 @@
 using CoilGun
-using Unitful:Ω, m, cm, kg, g, A, N, Na,ustrip, T, s, μ0, ϵ0, Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance,
-     BField, Volume, Area, k, J, K, mol, Current, HField, MagneticDipoleMoment, me, q, ħ, μB, Density, mm, inch, μm
+using Unitful:Ω, m, cm, kg, g, A, N, Na,T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm
+using Unitful:ustrip, Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density
 using ForwardDiff
-using Test
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
@@ -23,7 +22,6 @@ const domainPinningFactor = 150A/m                          #This is the domain 
 const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
 const simplifiedMagMoment = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
 const saturationMagnetizationPerKgFe = 217.6A/(m*kg)             #Saturation magnetizaiton of pure Iron per unit mass.
-#const meanMagneticRadius = 6.2438mm |> m                    #Radial position where the average magnetic field from the coils is located
 
 
 #Projectile Specifications

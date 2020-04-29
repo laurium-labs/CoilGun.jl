@@ -5,19 +5,19 @@ module CreatedUnits
   using Unitful: 𝐈, 𝐌, 𝐓, 𝐋
   @derived_dimension BFieldGrad 𝐈^-1*𝐌*𝐓^-2*𝐋^-1
 end
-using Unitful:Ω, m, cm, kg, g, A, N, Na,ustrip, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm
-using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance,BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density
+using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm
+using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance,BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, ustrip
 using ForwardDiff
 #MagneticDipoleMomentPerKg(::Unitful.FreeUnits{(A,m,kg), L^2*I*M^-1,nothing})
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
 const densityFe = 7750kg/m^3                                #Density of pure Iron
-const atomicWeightFe = 55.845g/mol                          #Atomic weight of Iron
+const atomicWeightFe = 55.845g/mol  |> kg/mol               #Atomic weight of Iron
 const domainSizeFe = 26.5e-7m                               #Average magnetic domain size for pure Iron (actually 26.5e-9)
 const densityNi = 8.908g/cm^3 |> kg/m^3                     #Density of pure Nickel
 const currieTempFe = 1043K                                  #This is the Currie tempearture of Iron
-const bohrMagnetonPerAtomFe = 2.2*μB                        #The is the Bohr Magneton per Iron atom
+const bohrMagnetonPerAtomFe = 2.2m^-3*μB   |> A/m           #The is the Bohr Magneton per Iron atom
 const numberAtomsperDomainFe = Na*domainSizeFe^3*densityFe/atomicWeightFe  #Number of atoms per Iron domain volume
 const magPerFeAtom = currieTempFe*k/bohrMagnetonPerAtomFe   #This is the magnetic field given off by each Iron atom
 const magPerFeDomain = magPerFeAtom*numberAtomsperDomainFe  #Magnetic field of the domain
@@ -25,11 +25,10 @@ const χFe = 200_000                                         #Magnetic susceptib
 const μ = μ0*(1+χFe)                                        #Magnetic pearmeability of iron
 const α = 9.5e-5                                            #Interdomain Coupling Factor (for an iron transformer)
 const roomTemp = 300K                                       #Standard room Tempearture
-const domainPinningFactor = 150                          #This is the domain pinning factor for Iron (transformer)
-const domainMagnetization = numberAtomsperDomainFe*bohrMagnetonPerAtomFe  #Magnetization of the domain
+const domainPinningFactor = 150A/m                          #This is the domain pinning factor for Iron (transformer)
+const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
 const simplifiedMagMoment = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
 const saturationMagnetizationPerKgFe = 217.6A/(m*kg)             #Saturation magnetizaiton of pure Iron per unit mass.
-#const meanMagneticRadius = 6.2438mm |> m                    #Radial position where the average magnetic field from the coils is located
 
 abstract type Projectile end
 abstract type Physical end
