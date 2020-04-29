@@ -93,9 +93,9 @@ numberWindings(coil::Coil)          = trunc(Int,coil.length/(2*coil.wireRadius))
 numberLayers(coil::Coil)            = trunc(Int,coil.thickness/(2*coil.wireRadius)) #Number of winding layers in the coil
 totalNumberWindings(coil::Coil)     = trunc(Int,numberLayers(coil)*(numberWindings(coil)-0.5))
 wireLength(coil::Coil)              = pi*numberLayers(coil)*(numberWindings(coil)*coil.innerRadius+sqrt(3)*coil.wireRadius*(numberWindings(coil)*(numberLayers(coil)+1)-(numberLayers(coil)+3)/2))
-wireArea(coil::Coil) ::Area         = coil.wireRadius^2*pi
-wireVolume(coil::Coil) ::Volume     = wireLength(coil)*wireArea(coil)
-wireMass(coil::Coil) ::Mass         = densityCu*wireVolume(coil)
+area(coil::Coil) ::Area         = coil.wireRadius^2*pi
+volume(coil::Coil) ::Volume     = wireLength(coil)*wireArea(coil)
+mass(coil::Coil) ::Mass         = densityCu*wireVolume(coil)
 resistance(coil::Coil)              = resistivityCu*wireLength(coil)/wireArea(coil)
 coilCrossSectionalArea(coil::Coil)  = (coil.innerRadius+coil.thickness) * coil.length
 meanMagneticRadius(coil::Coil)      = 2*coil.innerRadius*(coil.thickness+coil.innerRadius)/(2*coil.innerRadius+coil.thickness)
@@ -235,8 +235,8 @@ function effectiveMagnetization(proj::Projectile, bField::BField, bFieldMemory::
     #magnetizationReverse is the point at where the HField reverses direction.
     bMin = bFieldMemory[1]
     bMax = bFieldMemory[2]
-    magnetizationMinimum = langevin(proj,bMin,0)*saturationMagnetizationPerKgFe*mass(proj) #Fix
-    magnetizationMaximum = langevin(proj,bMax,0)*saturationMagnetizationPerKgFe*mass(proj) #Fix
+    magnetizationMinimum = langevin(proj,bMin,0)*saturationMagnetizationPerKgFe*mass(proj)
+    magnetizationMaximum = langevin(proj,bMax,0)*saturationMagnetizationPerKgFe*mass(proj)
     previousBField = bFieldMemory[3]
     magnetizationReverse = (bField - previousBField) > 0T ? magnetizationMinimum : magnetizationMaximum
     Λ = closingFunction(magnetizationMinimum, magnetizationMaximum, proj, bField, previousBField)
@@ -260,7 +260,7 @@ function projectileCoilTotalForce(coil::Coil, proj::Projectile, ∇bField::BFiel
     totalForce = sum(dipoleCoilForce([z,ρ], proj, coil, ∇bField.amplitude[coordinateConversion(z),1])  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
 end
 #Is it benifitial to have matricies than arrays?
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, wireArea, wireVolume, wireMass, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagneticDipoleVector, MagneticDipoleVector, ProjectilePhysical, ProjectileMagnetic, BFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, generateBFieldGradient, generateMagneticDomians, updateDomain,langevin,magnetization,closingFunction, effectiveMagnetization,dipoleCoilForce,projectileCoilTotalForce,totalNumberWindings, generateBField, simpleBField
+export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagneticDipoleVector, MagneticDipoleVector, ProjectilePhysical, ProjectileMagnetic, BFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, generateBFieldGradient, generateMagneticDomians, updateDomain,langevin,magnetization,closingFunction, effectiveMagnetization,dipoleCoilForce,projectileCoilTotalForce,totalNumberWindings, generateBField, simpleBField
 end
 #module
 
