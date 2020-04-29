@@ -161,12 +161,12 @@ function generateBField(coil::Coil,current::Current,proj::Projectile)
     return [simpleBField(x,coil,current) for x in coilPosition]
 end
 
-function generateMagneticDomians(ironproj::Projectile)
+function generateMagneticDomians(physical::ProjectilePhysical, domainSize::Length, magneticStrengthperDomain::BField)
     """A function that calculates the initial orientation of the magnetic domains along a 2-D slice of the projectile. """
-    numRings    = trunc(Int, ironproj.physical.radius/ironproj.magnetic.domainSize)         #Number of concentric rings around the center of the rod that make up the domains (Rows)
-    numSlices   = trunc(Int, ironproj.physical.length/ironproj.magnetic.domainSize)         #How many times the iron rod is sliced along the zAxis (Collumns)
+    numRings    = trunc(Int, physical.radius/domainSize)         #Number of concentric rings around the center of the rod that make up the domains (Rows)
+    numSlices   = trunc(Int, physical.length/domainSize)         #How many times the iron rod is sliced along the zAxis (Collumns)
     #How the magnetic field and the domains interact
-    ironproj.magnetic.domains = [MagneticDipoleVector(exp(2*pi*rand()*im),ironproj.magnetic.magneticStrengthperDomain) for slices in 1:numSlices, rings in 1:numRings]
+    return [MagneticDipoleVector(exp(2*pi*rand()*im),magneticStrengthperDomain) for slices in 1:numSlices, rings in 1:numRings]
  end
 
 function updateDomain(ironproj::Projectile,coil::Coil,bField::BField)

@@ -34,11 +34,8 @@ magstrngth = 1T
 saturationMagnetization = saturationMagnetizationPerKgFe * magdomiansize^3 * densityFe
 
 #Barrel Specifications
-bthickness = 1mm |> m #Barrel thickness^
+bthickness = 1mm |> m #Barrel thickness
 blength = 0.5m |> m #Length of barrel
-
-
-domains = hcat([MagneticDipoleVector(exp(i*im),j*1T) for i = 1:10 for j = 1:10]...)
 
 
 #Coil Specifications
@@ -53,7 +50,7 @@ I = 1A #Current flowing through the wire
 stepSize = 1_000
 
 phys = ProjectilePhysical(projrad,projlength,densityFe)
-mag = ProjectileMagnetic(domainSizeFe,magstrngth,α,simplifiedMagMoment,domainMagnetization,saturationMagnetization,domains,0T)
+mag = ProjectileMagnetic(domainSizeFe,magstrngth,α,simplifiedMagMoment,domainMagnetization,saturationMagnetization,generateMagneticDomians(phys,domainSizeFe,μ0 * saturationMagnetization),0T)
 ip = IronProjectile(phys,mag,position)
 bar = Barrel(ip.physical.radius,bthickness,blength)
 coil = Coil(bar.innerRadius+bar.thickness,cthickness,ip.physical.length,wirerad)
@@ -77,7 +74,6 @@ pbf = 0.2T
 mem = [0T, 1T, 0.2T]
 mem = Array{BField,1}(mem)
 closingFunction(magmin,magmax,ip,bf,pbf)
-generateMagneticDomians(ip)
 effectiveMagnetization(ip, bf, mem)
 
 bfg1 = 2T/m
