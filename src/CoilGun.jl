@@ -1,9 +1,14 @@
 module CoilGun
-using Unitful:Ω, m, cm, kg, g, A, N, Na,ustrip, T, s, μ0, ϵ0, Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance,
-     BField, Volume, Area, k, J, K, mol, Current, HField, MagneticDipoleMoment, me, q, ħ, μB, Density, mm
+
+module CreatedUnits
+  using Unitful
+  using Unitful: 𝐈, 𝐌, 𝐓, 𝐋
+  @derived_dimension BFieldGrad 𝐈^-1*𝐌*𝐓^-2*𝐋^-1
+end
+using Unitful:Ω, m, cm, kg, g, A, N, Na,ustrip, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm
+using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance,BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density
 using ForwardDiff
 #MagneticDipoleMomentPerKg(::Unitful.FreeUnits{(A,m,kg), L^2*I*M^-1,nothing})
-@derived_dimension BFieldGrad I^-1*M*T^-2*L^-1
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
@@ -73,7 +78,7 @@ struct Coil
     wireRadius::Length   #This includes the insulation layer
 end
 struct BFieldGradient
-    amplitude::Array{BField}  #This should also include the position from the coil
+    amplitude::Array{CreatedUnits.BFieldGrad}  #This should also include the position from the coil
 end
 
 #Below are functions associated with the projectile used
@@ -239,21 +244,20 @@ function effectiveMagnetization(proj::Projectile, bField::BField, bFieldMemory::
 end
 #Push dealing with the whole projectile to the end, then sum the contributions of each cell. Meaning this is performed iteratively on each element.
 #Note: that the positonAlongProjectile is with respect to the coil. Only need to worry about force in X direction
-function dipoleCoilForce(positonAlongProjectile::Array{Int}, proj::Projectile, coil::Coil, bField::BField, bFieldGrad::BFieldGradient) :: Force
-    coilEdgeToProjEdge = proj.position - (coil.length+proj.physical.length)/2
-    heightDifference = meanMagneticRadius(coil) - positonAlongProjectile[2]*proj.magnetic.domainSize
+function dipoleCoilForce(positonAlongProjectile::Array{Int}, proj::Projectile, coil::Coil, bFieldGrad::CreatedUnits.BFieldGrad) :: Force
+    coilEdgeToProjEdge = proj.position - (coil.length+proj.physical.length)/2 |> m
+    heightDifference = meanMagneticRadius(coil) - positonAlongProjectile[2]*proj.magnetic.domainSize |> m
     magneticMoment = proj.magnetic.magnetization * magDomainVol(proj) * real(proj.magnetic.domains[positonAlongProjectile[1],positonAlongProjectile[2]].angle)
-    bFieldGrad = convert(Float64,bFieldGrad) |>T/m
-    return  magneticMoment * (bFieldGrad * heightDifference/sqrt(heightDifference^2+coilEdgeToProjEdge^2))
+    return  magneticMoment * bFieldGrad * heightDifference/sqrt(heightDifference^2+coilEdgeToProjEdge^2)
 end
 
-function projectileCoilTotalForce(coil::Coil, proj::Projectile, bField::Array{BField}, ∇bField::Array{BFieldGradient})
+function projectileCoilTotalForce(coil::Coil, proj::Projectile, ∇bField::BFieldGradient)
     projLengthSize,radialLengthSize = size(proj.magnetic.domains)
-    elementSize = size(bField)/(3*coil.length/2)#The span of the B-field
+    elementSize = (3*coil.length/2)/size(∇bField.amplitude)[1] |> m #The span of the B-field
 
     #The coordinateConversion function converts the incremental location within the projectile to the incremental location within the magnetic field.
-    coordinateConversion(x::Int) = Int(round((proj.position-(x-projLengthSize/2)*proj.domainSize)/elementSize))
-    totalForce = sum(dipoleCoilForce([z,ρ], proj, coil, bField[coordinateConversion(z)], ∇bField[coordinateConversion(z)])  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
+    coordinateConversion(x::Int) = Int(round((proj.position+(x-projLengthSize/2)*proj.magnetic.domainSize)/elementSize) |> ustrip)
+    totalForce = sum(dipoleCoilForce([z,ρ], proj, coil, ∇bField.amplitude[coordinateConversion(z),1])  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
 end
 #Is it benifitial to have matricies than arrays?
 export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, wireArea, wireVolume, wireMass, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagneticDipoleVector, MagneticDipoleVector, ProjectilePhysical, ProjectileMagnetic, BFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, generateBFieldGradient, generateMagneticDomians, updateDomain,langevin,magnetization,closingFunction, effectiveMagnetization,dipoleCoilForce,projectileCoilTotalForce,totalNumberWindings, generateBField, simpleBField

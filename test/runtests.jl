@@ -47,7 +47,7 @@ cthickness = 1inch |> m      #The difference in the ID and OD of the Coil
 coilLen = projlength    #The length of the Coil should be the exact length of the projectile
 coilHght = 2.3e-2m |> m      #Distance from inner to outer diameter of the Coil
 wirerad = 1.6mm |> m         #The radius of 14guage wire including insulation
-position = 0m
+position = projlength
 
 I = 1A #Current flowing through the wire
 stepSize = 1_000
@@ -80,5 +80,8 @@ closingFunction(magmin,magmax,ip,bf,pbf)
 generateMagneticDomians(ip)
 effectiveMagnetization(ip, bf, mem)
 
-bfg = BFieldGradient([0.2T])
-dipoleCoilForce([12,14], ip, coil, 1T, bfg)
+bfg1 = 2T/m
+testbfg = hcat([0T/m : 0.001T/m : bfg1]...)
+bfg = BFieldGradient(testbfg)
+dipoleCoilForce([12,14], ip, coil, bfg1)
+projectileCoilTotalForce(coil, ip, bfg)
