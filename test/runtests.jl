@@ -17,10 +17,10 @@ const magPerFeDomain = magPerFeAtom*numberAtomsperDomainFe  #Magnetic field of t
 const χFe = 200_000                                         #Magnetic susceptibility of iron at 20 C (unitless)
 const μ = μ0*(1+χFe)                                        #Magnetic pearmeability of iron
 const α = 9.5e-5                                            #Interdomain Coupling Factor (for an iron transformer)
-const roomTemp = 300K                                       #Standard room Tempearture
+const roomTemp = 293K                                       #Standard room Tempearture
 const domainPinningFactor = 150A/m                          #This is the domain pinning factor for Iron (transformer)
 const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
-const simplifiedMagMoment = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
+const magMomentPerDomain = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
 const saturationMagnetizationPerKgFe = 217.6A/(m*kg)             #Saturation magnetizaiton of pure Iron per unit mass.
 
 
@@ -37,21 +37,21 @@ blength = 0.5m |> m #Length of barrel
 
 
 #Coil Specifications
-innerRadius = projrad+bthickness      #The ID of the Coil needs to be the OD of the barrel
-cthickness = 1inch |> m      #The difference in the ID and OD of the Coil
+innerRadius = projrad+bthickness      #The Inner diameter of the Coil needs to be the Outer diameter of the barrel
+cthickness = 1inch |> m      #The difference in the Inner diameter and Outer diameter of the Coil
 coilLen = projlength    #The length of the Coil should be the exact length of the projectile
 coilHght = 2.3e-2m |> m      #Distance from inner to outer diameter of the Coil
-wirerad = 1.6mm |> m         #The radius of 14guage wire including insulation
+wirerad = 1.6mm |> m         #The radius of 14-guage wire including insulation
 position = projlength
 
 I = 1A #Current flowing through the wire
 stepSize = 1_000
 
-phys = ProjectilePhysical(projrad,projlength,densityFe)
-mag = ProjectileMagnetic(domainSizeFe,magstrngth,α,simplifiedMagMoment,domainMagnetization,saturationMagnetization,generateMagneticDomians(phys,domainSizeFe,μ0 * saturationMagnetization),0T)
-ip = IronProjectile(phys,mag,position)
-bar = Barrel(ip.physical.radius,bthickness,blength)
-coil = Coil(bar.innerRadius+bar.thickness,cthickness,ip.physical.length,wirerad)
+phys    = ProjectilePhysical(projrad,projlength,densityFe)
+mag     = ProjectileMagnetic(domainSizeFe,magstrngth,α,magMomentPerDomain,domainMagnetization,saturationMagnetization,generateMagneticDomians(phys,domainSizeFe,μ0 * saturationMagnetization),0T)
+ip      = IronProjectile(phys,mag,position)
+bar     = Barrel(ip.physical.radius,bthickness,blength)
+coil    = Coil(bar.innerRadius+bar.thickness,cthickness,ip.physical.length,wirerad)
 
 """
 When calculating the magnetic field given off from the coil, remember to have the step size similar to the domain size in the projectile.

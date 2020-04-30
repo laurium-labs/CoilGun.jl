@@ -27,8 +27,8 @@ const α = 9.5e-5                                            #Interdomain Coupli
 const roomTemp = 300K                                       #Standard room Tempearture
 const domainPinningFactor = 150A/m                          #This is the domain pinning factor for Iron (transformer)
 const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
-const simplifiedMagMoment = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
-const saturationMagnetizationPerKgFe = 217.6A/(m*kg)             #Saturation magnetizaiton of pure Iron per unit mass.
+const magMomentPerDomain = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
+const saturationMagnetizationPerKgFe = 217.6A/(m*kg)        #Saturation magnetizaiton of pure Iron per unit mass.
 
 abstract type Projectile end
 abstract type Physical end
@@ -92,10 +92,10 @@ numberWindings(coil::Coil)          = trunc(Int,coil.length/(2*coil.wireRadius))
 numberLayers(coil::Coil)            = trunc(Int,coil.thickness/(2*coil.wireRadius)) #Number of winding layers in the coil
 totalNumberWindings(coil::Coil)     = trunc(Int,numberLayers(coil)*(numberWindings(coil)-0.5))
 wireLength(coil::Coil)              = pi*numberLayers(coil)*(numberWindings(coil)*coil.innerRadius+sqrt(3)*coil.wireRadius*(numberWindings(coil)*(numberLayers(coil)+1)-(numberLayers(coil)+3)/2))
-area(coil::Coil) ::Area         = coil.wireRadius^2*pi
-volume(coil::Coil) ::Volume     = wireLength(coil)*wireArea(coil)
-mass(coil::Coil) ::Mass         = densityCu*wireVolume(coil)
-resistance(coil::Coil)              = resistivityCu*wireLength(coil)/wireArea(coil)
+area(coil::Coil) ::Area             = coil.wireRadius^2*pi
+volume(coil::Coil) ::Volume         = wireLength(coil)*area(coil)
+mass(coil::Coil) ::Mass             = densityCu*volume(coil)
+resistance(coil::Coil)              = resistivityCu*wireLength(coil)/area(coil)
 coilCrossSectionalArea(coil::Coil)  = (coil.innerRadius+coil.thickness) * coil.length
 meanMagneticRadius(coil::Coil)      = 2*coil.innerRadius*(coil.thickness+coil.innerRadius)/(2*coil.innerRadius+coil.thickness)
 
@@ -161,13 +161,13 @@ function generateBField(coil::Coil,current::Current,proj::Projectile)
 end
 
 function generateMagneticDomians(physical::ProjectilePhysical, domainSize::Length, magneticStrengthperDomain::BField)
+
     """A function that calculates the initial orientation of the magnetic domains along a 2-D slice of the projectile. """
     numRings    = trunc(Int, physical.radius/domainSize)         #Number of concentric rings around the center of the rod that make up the domains (Rows)
     numSlices   = trunc(Int, physical.length/domainSize)         #How many times the iron rod is sliced along the zAxis (Collumns)
     #How the magnetic field and the domains interact
     return [MagneticDipoleVector(exp(2*pi*rand()*im),magneticStrengthperDomain) for slices in 1:numSlices, rings in 1:numRings]
- end
-
+end
 function updateDomain(ironproj::Projectile,coil::Coil,bField::BField)
     """
     Here is where the magnetic moment of the domains is oriented with reference to the direction of the external magnetic field. I'm currently using trig to calculate the new direction using exponentials (e.g. exp[iθ]). This makes it easy to change the angle of the vector. This function seems pretty slow, and could probably be done more efficiently.
@@ -194,10 +194,12 @@ function updateDomain(ironproj::Projectile,coil::Coil,bField::BField)
     return ironproj.magnetic.domains
 end
 
+
+#The paper referenced for these following equaitons relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
 function langevin(proj::Projectile, bField::BField, derivative::Int64)::Float64
     a = k*roomTemp/proj.magnetic.magneticMoment |> T                #Constant
     effectiveBField = bField+μ0*α*proj.magnetic.magnetization |> T  #The effective B field is the B field experienced by the element
-    x = effectiveBField/a |> ustrip                                     #Variable
+    x = effectiveBField/a |> ustrip                                 #Variable
     magnetization(var) = coth(var)-1/var
     if derivative > 0
         mag(var) = ForwardDiff.derivative(magnetization,var)
@@ -230,13 +232,14 @@ function closingFunction(magnetizationMinimum::HField, magnetizationMaximum::HFi
 end
 
 function effectiveMagnetization(proj::Projectile, bField::BField, bFieldMemory::Array{BField})::HField
-    #Question: Does the effective magnetizaiton describe the whole projectile, or could it describe a cell?
+    #Question: Does the effective magnetizaiton describe the whole projectile, or could it describe a cell? No, using the Wiess Mean field theory this effective magnetization describes the entire projectile.
     #magnetizationReverse is the point at where the HField reverses direction.
     bMin = bFieldMemory[1]
     bMax = bFieldMemory[2]
-    magnetizationMinimum = langevin(proj,bMin,0)*saturationMagnetizationPerKgFe*mass(proj)
-    magnetizationMaximum = langevin(proj,bMax,0)*saturationMagnetizationPerKgFe*mass(proj)
     previousBField = bFieldMemory[3]
+    δ = (bField - previousBField) > 0T ? 1 : 0
+    magnetizationMinimum = magnetization(proj, bMin, -δ) * saturationMagnetizationPerKgFe * mass(proj)
+    magnetizationMaximum = magnetization(proj, bMax, δ)  * saturationMagnetizationPerKgFe * mass(proj)
     magnetizationReverse = (bField - previousBField) > 0T ? magnetizationMinimum : magnetizationMaximum
     Λ = closingFunction(magnetizationMinimum, magnetizationMaximum, proj, bField, previousBField)
     return Λ * (proj.magnetic.magnetization-magnetizationReverse)
