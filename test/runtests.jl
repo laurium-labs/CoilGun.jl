@@ -74,8 +74,11 @@ mem = Array{BField,1}(mem)
 closingFunction(magmin,magmax,ip,bf,pbf)
 effectiveMagnetization(ip, bf, mem)
 
-bfg1 = 2T/m
-testbfg = hcat([0T/m : 0.001T/m : bfg1]...)
-bfg = BFieldGradient(testbfg)
-dipoleCoilForce([12,14], ip, coil, bfg1)
-projectileCoilTotalForce(coil, ip, bfg)
+
+ΔMagnetization(ip,bFieldIntegration[1], 0A/m, 0.3, 1)
+
+# bfg1 = 2T/m
+# testbfg = hcat([0T/m : 0.001T/m : bfg1]...)
+# bfg = BFieldGradient(testbfg)
+# dipoleCoilForce([12,14], ip, coil, bfg1)
+# projectileCoilTotalForce(coil, ip, bfg)

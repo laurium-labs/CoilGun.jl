@@ -35,8 +35,7 @@ abstract type Physical end
 abstract type ElectroMagnetic end
 
 struct MagneticDipoleVector
-    angle::Complex{Float64}
-    magnitude::BField #Using cylindrical coordindates
+    vector::Complex{BField} #Using cylindrical coordindates #Wrong
 end
 
 struct ProjectilePhysical <: Physical
@@ -166,7 +165,7 @@ function generateMagneticDomians(physical::ProjectilePhysical, domainSize::Lengt
     numRings    = trunc(Int, physical.radius/domainSize)         #Number of concentric rings around the center of the rod that make up the domains (Rows)
     numSlices   = trunc(Int, physical.length/domainSize)         #How many times the iron rod is sliced along the zAxis (Collumns)
     #How the magnetic field and the domains interact
-    return [MagneticDipoleVector(exp(2*pi*rand()*im),magneticStrengthperDomain) for slices in 1:numSlices, rings in 1:numRings]
+    return [MagneticDipoleVector(exp(2*pi*rand()*im)*magneticStrengthperDomain) for slices in 1:numSlices, rings in 1:numRings]
 end
 function updateDomain(ironproj::Projectile,coil::Coil,bField::BField)
     """
@@ -184,11 +183,11 @@ function updateDomain(ironproj::Projectile,coil::Coil,bField::BField)
             zAxis = z*Δz+coilEdgeToProjEdge
             saturationAngle = atan(zAxis/ρAxis)+pi/2   #The MagneticDipoleVector must be pointed tangently from the meanMagneticRadius. There's probably a more efficient way to calculate this angle.
             #What is being done here is i'm checking the orientation of the current magnetization, comparing it to the angle it would be at if the rod were fully saturated, and deciding which way from the saturation angle the new angle should be pointing.
-            δ = asin(imag(ironproj.magnetic.domains[z,ρ].angle))-saturationAngle > pi ? 1 : -1 #Ask Brent if calling the specific angle is correct
+            δ = asin(imag(ironproj.magnetic.domains[z,ρ].vector))-saturationAngle > pi ? 1 : -1 #Ask Brent if calling the specific angle is correct
             actualAngle = saturationAngle + acos((ironproj.magnetic.magnetization/saturationMagnetizationFe(ironproj)) |> ustrip) * δ
             #This actual angle is accounting for domain wall movement and pinning and is based off of the B-H curve for magnetization of a ferromaterial.
             θ = abs(zAxis) > coil.length/2 ? actualAngle : 0
-            ironproj.magnetic.domains[z,ρ] = MagneticDipoleVector(exp(θ*im),ironproj.magnetic.magneticStrengthperDomain)
+            ironproj.magnetic.domains[z,ρ] = MagneticDipoleVector(exp(θ*im)*ironproj.magnetic.magneticStrengthperDomain)
         end
     end
     return ironproj.magnetic.domains
@@ -210,6 +209,12 @@ function langevin(proj::Projectile, bField::BField, derivative::Int64)::Float64
         return mag(x)
     end
     return magnetization(x)
+end
+
+function ΔMagnetization(proj::Projectile, bField::BField, previousMagnetization::HField, reversibility::Number, δ::Int)::HField
+    #Note: This function does produce an issue. When the changing magnetic field flips, this program continues to increase the magnetization of the projectile. I suspect this is caused by the magnetizationDifference. Unsure on how to fix this, but it isn't crutial.
+    magnetizationDifference = (saturationMagnetizationFe(proj) * langevin(proj, bField, 0)-previousMagnetization)
+    return (1-reversibility)*magnetizationDifference/(δ*domainPinningFactor-α*magnetizationDifference) + reversibility*saturationMagnetizationFe(proj)*langevin(proj, bField, 1)
 end
 
 function magnetization(proj::Projectile, magField::BField, δ::Int)
