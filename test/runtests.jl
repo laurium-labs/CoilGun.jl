@@ -71,8 +71,8 @@ bf = 0.3T
 pbf = 0.2T
 mem = [0T, 1T, 0.2T]
 mem = Array{BField,1}(mem)
-closingFunction(magmin,magmax,ip,bf,pbf)
-effectiveMagnetization(ip, bf, mem)
+# closingFunction(magmin,magmax,ip,bf,pbf)
+# effectiveMagnetization(ip, bf, mem)
 
 
 ΔMagnetization(ip,bFieldIntegration[1], 0A/m, 0.3, 1)

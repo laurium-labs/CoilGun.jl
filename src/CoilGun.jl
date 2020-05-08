@@ -25,7 +25,7 @@ const χFe = 200_000                                         #Magnetic susceptib
 const μ = μ0*(1+χFe)                                        #Magnetic pearmeability of iron
 const α = 9.5e-5                                            #Interdomain Coupling Factor (for an iron transformer)
 const roomTemp = 300K                                       #Standard room Tempearture
-const domainPinningFactor = 150A/m                          #This is the domain pinning factor for Iron (transformer)
+const domainPinningFactor = 150A/m                             #This is the domain pinning factor for Iron (transformer).
 const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
 const magMomentPerDomain = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
 const saturationMagnetizationPerKgFe = 217.6A/(m*kg)        #Saturation magnetizaiton of pure Iron per unit mass.
@@ -35,7 +35,7 @@ abstract type Physical end
 abstract type ElectroMagnetic end
 
 struct MagneticDipoleVector
-    vector::Complex{BField} #Using cylindrical coordindates #Wrong
+    vector::BField     #Using cylindrical coordindates #Wrong
 end
 
 struct ProjectilePhysical <: Physical
@@ -84,7 +84,7 @@ volume(proj::Projectile)::Volume    = proj.physical.radius^2 * π * proj.physica
 mass(proj::Projectile)::Mass        = volume(proj)*density(proj)
 density(proj::IronProjectile)       = proj.physical.density
 magDomainVol(proj::Projectile)      = proj.magnetic.domainSize^3
-saturationMagnetizationFe(proj::Projectile) = saturationMagnetizationPerKgFe*proj.physical.density*magDomainVol(proj)
+saturationMagnetizationFe(proj::Projectile)::HField = saturationMagnetizationPerKgFe*proj.physical.density*volume(proj)
 
 #Below are functions associated with the Coil and wire
 numberWindings(coil::Coil)          = trunc(Int,coil.length/(2*coil.wireRadius)) #Number of windings along the length of the coil
@@ -214,10 +214,10 @@ end
 function ΔMagnetization(proj::Projectile, bField::BField, previousMagnetization::HField, reversibility::Number, δ::Int)::HField
     #Note: This function does produce an issue. When the changing magnetic field flips, this program continues to increase the magnetization of the projectile. I suspect this is caused by the magnetizationDifference. Unsure on how to fix this, but it isn't crutial.
     magnetizationDifference = (saturationMagnetizationFe(proj) * langevin(proj, bField, 0)-previousMagnetization)
-    return (1-reversibility)*magnetizationDifference/(δ*domainPinningFactor-α*magnetizationDifference) + reversibility*saturationMagnetizationFe(proj)*langevin(proj, bField, 1)
+    return saturationMagnetizationFe(proj)*((1-reversibility)*magnetizationDifference/(δ*domainPinningFactor-α*magnetizationDifference) + reversibility*langevin(proj, bField, 1))
 end
 
-function magnetization(proj::Projectile, magField::BField, δ::Int)
+function magnetization(proj::Projectile, magField::BField, δ::Int)::HField
     #This funciton is the basic funciton that the closing function and the effective magnetism is built out of. There are a couple different types: The normal funciton where theere are no special parameters, the reversal function that is the magnetization of the reversal point, the last magnetization which is the previous magnetization point, the + magnetization where the change in mag is positive, and correspondingly the - mag where the change is negative. This will have to be performed at each element of the projectile.
     return proj.magnetic.saturationMagnetization * (langevin(proj, magField, 0)-domainPinningFactor*δ*langevin(proj, magField, 1)+domainPinningFactor^2*langevin(proj, magField, 2))
 end
@@ -243,8 +243,8 @@ function effectiveMagnetization(proj::Projectile, bField::BField, bFieldMemory::
     bMax = bFieldMemory[2]
     previousBField = bFieldMemory[3]
     δ = (bField - previousBField) > 0T ? 1 : 0
-    magnetizationMinimum = magnetization(proj, bMin, -δ) * saturationMagnetizationPerKgFe * mass(proj)
-    magnetizationMaximum = magnetization(proj, bMax, δ)  * saturationMagnetizationPerKgFe * mass(proj)
+    magnetizationMinimum = magnetization(proj, bMin, -δ)
+    magnetizationMaximum = magnetization(proj, bMax, δ)
     magnetizationReverse = (bField - previousBField) > 0T ? magnetizationMinimum : magnetizationMaximum
     Λ = closingFunction(magnetizationMinimum, magnetizationMaximum, proj, bField, previousBField)
     return Λ * (proj.magnetic.magnetization-magnetizationReverse)
@@ -267,7 +267,7 @@ function projectileCoilTotalForce(coil::Coil, proj::Projectile, ∇bField::BFiel
     totalForce = sum(dipoleCoilForce([z,ρ], proj, coil, ∇bField.amplitude[coordinateConversion(z),1])  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
 end
 #Is it benifitial to have matricies than arrays?
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagneticDipoleVector, MagneticDipoleVector, ProjectilePhysical, ProjectileMagnetic, BFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, generateBFieldGradient, generateMagneticDomians, updateDomain,langevin,magnetization,closingFunction, effectiveMagnetization,dipoleCoilForce,projectileCoilTotalForce,totalNumberWindings, generateBField, simpleBField
+export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagneticDipoleVector, MagneticDipoleVector, ProjectilePhysical, ProjectileMagnetic, BFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, generateBFieldGradient, generateMagneticDomians, updateDomain,langevin,magnetization,closingFunction, effectiveMagnetization,dipoleCoilForce,projectileCoilTotalForce,totalNumberWindings, generateBField, simpleBField, ΔMagnetization
 end
 #module
 
