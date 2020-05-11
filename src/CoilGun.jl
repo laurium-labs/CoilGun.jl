@@ -196,24 +196,25 @@ end
 
 
 #The paper referenced for these following equaitons relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
-function langevin(proj::Projectile, bField::BField, derivative::Int64)::Float64
+function ℒ(proj::Projectile, bField::BField)::Float64
+    #langevin funciton that represents the anhystesis magnetization curve for a given material
     a = k*roomTemp/proj.magnetic.magneticMoment |> T  |>ustrip              #Constant
-    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*proj.magnetic.magnetization|>T|>ustrip #Variable
+    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*proj.magnetic.magnetization |>T|>ustrip #Variable
+    return coth(effectiveBField/a)-(a/effectiveBField)
+end
+
+function ∂ℒ(proj::Projectile, bField::BField)::Float64
+    #The first order derivative (with respect to the BField) of the ℒ funciton
+    a = k*roomTemp/proj.magnetic.magneticMoment |> T  |>ustrip              #Constant
+    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*proj.magnetic.magnetization |>T|>ustrip #Variable
     magnetization(var) = coth(var/a)-(a/var)
-    mag1(x) = ForwardDiff.derivative(magnetization,x)
-    mag2(x) = ForwardDiff.derivative(mag1,x)
-    if derivative == 1
-        return mag1(effectiveBField)
-    elseif derivative == 2
-        return mag2(effectiveBField)
-    end
-    return magnetization(effectiveBField)
+    return ForwardDiff.derivative(magnetization,effectiveBField)
 end
 
 function ΔMagnetization(proj::Projectile, bField::BField, previousMagnetization::HField, reversibility::Number, δ::Int)::HField
     #Note: This function does produce an issue. When the changing magnetic field flips, this program continues to increase the magnetization of the projectile. I suspect this is caused by the magnetizationDifference. Unsure on how to fix this, but it isn't crutial.
-    magnetizationDifference = (proj.magnetic.saturationMagnetization  * langevin(proj, bField, 0)-previousMagnetization)
-    return proj.magnetic.saturationMagnetization * ((1-reversibility)*magnetizationDifference/(δ*domainPinningFactor-α*magnetizationDifference) + reversibility*langevin(proj, bField, 1))
+    magnetizationDifference = (proj.magnetic.saturationMagnetization  * ℒ(proj, bField)-previousMagnetization)
+    return proj.magnetic.saturationMagnetization * ((1-reversibility)*magnetizationDifference/(δ*domainPinningFactor-α*magnetizationDifference) + reversibility*∂ℒ(proj, bField))
 end
 
 function dipoleCoilForce(proj::Projectile, coil::Coil, ∇BField::BFieldGradient)::Force
@@ -221,7 +222,6 @@ function dipoleCoilForce(proj::Projectile, coil::Coil, ∇BField::BFieldGradient
     dx = (3*coil.length/2)/length(∇BField.amplitude)
     i = round(proj.position/dx) |> Int #this finds where the location is in the ∇bField array
     magneticDipoleMoment = proj.magnetic.magnetization * volume(proj)
-    println(∇BField.amplitude[i] |> T/m)
     return magneticDipoleMoment * ∇BField.amplitude[i]
 end
 
@@ -274,7 +274,7 @@ function projectileCoilTotalForce(coil::Coil, proj::Projectile, ∇bField::BFiel
     totalForce = sum(dipoleCoilForce([z,ρ], proj, coil, ∇bField.amplitude[coordinateConversion(z),1])  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
 end
 #Is it benifitial to have matricies than arrays?
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagneticDipoleVector, MagneticDipoleVector, ProjectilePhysical, ProjectileMagnetic, BFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, generateBFieldGradient, generateMagneticDomians, updateDomain,langevin,magnetization,closingFunction, effectiveMagnetization,dipoleCoilForce,projectileCoilTotalForce,totalNumberWindings, generateBField, simpleBField, ΔMagnetization, domainCoilForce
+export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagneticDipoleVector, MagneticDipoleVector, ProjectilePhysical, ProjectileMagnetic, BFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, generateBFieldGradient, generateMagneticDomians, updateDomain, ℒ, ∂ℒ, magnetization,closingFunction, effectiveMagnetization,dipoleCoilForce,projectileCoilTotalForce,totalNumberWindings, generateBField, simpleBField, ΔMagnetization, domainCoilForce
 end
 #module
 

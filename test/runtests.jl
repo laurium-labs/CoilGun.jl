@@ -78,6 +78,8 @@ mem = Array{BField,1}(mem)
 println(volume(ip))
 
 ∇B = BFieldGradient(generateBFieldGradient(coil, I, ip))
+ℒ(ip, bf)
+∂ℒ(ip, bf)
 ΔMagnetization(ip,bFieldIntegration[1], 0A/m, 0.3, 1)
 dipoleCoilForce(ip, coil, ∇B)
 
