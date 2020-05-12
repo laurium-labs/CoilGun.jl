@@ -5,7 +5,7 @@ module CreatedUnits
   using Unitful: 𝐈, 𝐌, 𝐓, 𝐋
   @derived_dimension BFieldGrad 𝐈^-1*𝐌*𝐓^-2*𝐋^-1
 end
-using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V
+using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
 using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, 
         Density, Inductance, ustrip, Voltage, Velocity
 using ForwardDiff
@@ -26,10 +26,13 @@ const χFe = 200_000                                         #Magnetic susceptib
 const μ = μ0*(1+χFe)                                        #Magnetic pearmeability of iron
 const α = 9.5e-5                                            #Interdomain Coupling Factor (for an iron transformer)
 const roomTemp = 300K                                       #Standard room Tempearture
-const domainPinningFactor = 150A/m                             #This is the domain pinning factor for Iron (transformer).
+const domainPinningFactor = 150A/m                          #This is the domain pinning factor for Iron (transformer).
 const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
 const magMomentPerDomain = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
 const saturationMagnetizationPerKgFe = 217.6A/(m*kg)        #Saturation magnetizaiton of pure Iron per unit mass.
+const kineticFrictionCoefficientFe = 0.36                   #Kinetic friction coefficient of Mild Steel on Copper, probably not exact
+const staticFrictionCoefficientFe = 0.53                    #Static friction coefficient of copper on Steel, probably not exact
+const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity of air at 20C
 
 abstract type Projectile end
 abstract type Physical end
@@ -158,11 +161,11 @@ function generateBField(coil::Coil,current::Current,proj::Projectile)
     coilPosition = 0m:dx:integrationRange
     return [simpleBField(x,coil,current) for x in coilPosition]
 end
-function selfInductance(coil::Coil, current::Current)
+function selfInductance(coil::Coil, current::Current)::Inductance
     #This is a simplified version for the self inductance of the coil. It is not taking into consideration the thickness of the coil, or the varying magnetic fields that pass through each loop. This is just for approximation only.
     return simpleBField(0m, coil, current) * pi * totalNumberWindings(coil) * (meanMagneticRadius(coil)^2)/(3*current)
 end
-function mutualInductance(coil::Coil, current)
+function mutualInductance(coil::Coil, current::Current)::Inductance
     #This is a greatly simplified expression that represents the mutual coupling between two adjacent coils. The selfInductance part is correct because every coil is going to have the same inductance
     couplingFactor = simpleBField(coil.length, coil, current)/simpleBField(0m, coil, current)
     return couplingFactor*selfInductance(coil, current)
@@ -174,6 +177,14 @@ function projectileInducedVoltage(proj::Projectile, coil::Coil)::Voltage
     constant = μ0 * proj.magnetic.magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂AreaRatio_∂t
 end
+# function current(resistor::ElectricalResistance)::Current
+#     #This function calculates the current that is traveling through a coil. This is not taking operational amplifiers into consideration.
+#     inducedVoltage = 
+#     inducedVoltage = projectileInducedVoltage(proj, coil) + inductanceVoltage
+#     totalVoltage = initialVoltage + inducedVoltage + 
+#     totalResistance = resistance(coil) + resistor
+#     return totalVoltage/totalResistance
+# end
 
 # Magnetic Domain functions
 function generateMagneticDomians(physical::ProjectilePhysical, domainSize::Length, magneticStrengthperDomain::BField)
@@ -240,7 +251,16 @@ function dipoleCoilForce(proj::Projectile, coil::Coil, ∇BField::BFieldGradient
     magneticDipoleMoment = proj.magnetic.magnetization * volume(proj)
     return magneticDipoleMoment * ∇BField.amplitude[i]
 end
-
+function frictionForce(proj::Projectile)::Force
+    #This describes the resistive force due to friction (both static and kinetic). I know very little about the relationship between kinetic friction and velocity, but I highly doubt it's a constant relationship. More research will have to be done.
+    frictionCoefficient = abs(proj.velocity) > 0m/s ? kineticFrictionCoefficientFe : staticFrictionCoefficientFe
+    normalForce = mass(proj) * gn
+    return frictionCoefficient * normalForce
+end
+function airResistance(proj::Projectile)::Force
+    #This funciton is used to calculate the air resistance on the projectile. This current function is overly simplified and will need to be changed later for a more accurate function.
+    return 6 * pi * dynamicViscosityAir * proj.physical.radius * proj.velocity
+end
 # function magnetization(proj::Projectile, magField::BField, δ::Int)::HField
 #     #This funciton is the basic funciton that the closing function and the effective magnetism is built out of. There are a couple different types: The normal funciton where theere are no special parameters, the reversal function that is the magnetization of the reversal point, the last magnetization which is the previous magnetization point, the + magnetization where the change in mag is positive, and correspondingly the - mag where the change is negative. This will have to be performed at each element of the projectile.
 #     return proj.magnetic.saturationMagnetization * (langevin(proj, magField, 0)-domainPinningFactor*δ*langevin(proj, magField, 1)+domainPinningFactor^2*langevin(proj, magField, 2))
@@ -290,7 +310,7 @@ end
 #     totalForce = sum(dipoleCoilForce([z,ρ], proj, coil, ∇bField.amplitude[coordinateConversion(z),1])  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
 # end
 #Is it benifitial to have matricies than arrays?
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagneticDipoleVector, MagneticDipoleVector, ProjectilePhysical, ProjectileMagnetic, BFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, generateBFieldGradient, generateMagneticDomians, updateDomain, ℒ, ∂ℒ, magnetization,closingFunction, effectiveMagnetization,dipoleCoilForce,projectileCoilTotalForce,totalNumberWindings, generateBField, simpleBField, ΔMagnetization, domainCoilForce, selfInductance, mutualInductance, projectileInducedVoltage
+export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagneticDipoleVector, MagneticDipoleVector, ProjectilePhysical, ProjectileMagnetic, BFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, generateBFieldGradient, generateMagneticDomians, updateDomain, ℒ, ∂ℒ, magnetization,closingFunction, effectiveMagnetization,dipoleCoilForce,projectileCoilTotalForce,totalNumberWindings, generateBField, simpleBField, ΔMagnetization, domainCoilForce, selfInductance, mutualInductance, projectileInducedVoltage, frictionForce, airResistance
 end
 #module
 

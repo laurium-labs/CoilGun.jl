@@ -1,5 +1,5 @@
 using CoilGun
-using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V
+using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
 using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, 
                 Inductance, ustrip, Voltage
 using ForwardDiff
@@ -85,6 +85,5 @@ mem = Array{BField,1}(mem)
 # bfg = BFieldGradient(testbfg)
 # projectileCoilTotalForce(coil, ip, bfg)
 
-println(selfInductance(coil, I)/(4Ω + resistance(coil)) |> s)
-println(mutualInductance(coil, I))
-println(projectileInducedVoltage(ip, coil) |> V)
+println(airResistance(ip) |> N)
+println(frictionForce(ip) |> N)
