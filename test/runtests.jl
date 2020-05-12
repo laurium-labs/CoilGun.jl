@@ -1,7 +1,7 @@
 using CoilGun
-using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm
-using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, 
-              BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, ustrip
+using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V
+using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, 
+                Inductance, ustrip, Voltage
 using ForwardDiff
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
@@ -31,6 +31,8 @@ projlength = 1inch |> m
 magdomiansize = 26.5μm |> m   #From literature, it is actually 26.5 nm, this value is not being used because I would have no memory left.
 magstrngth = 1T
 saturationMagnetization = saturationMagnetizationPerKgFe * magdomiansize^3 * densityFe
+position = projlength
+velocity = 1m/s
 
 #Barrel Specifications
 bthickness = 1mm |> m #Barrel thickness
@@ -38,21 +40,19 @@ blength = 0.5m |> m #Length of barrel
 
 
 #Coil Specifications
-innerRadius = projrad+bthickness      #The Inner diameter of the Coil needs to be the Outer diameter of the barrel
-cthickness = 1inch |> m      #The difference in the Inner diameter and Outer diameter of the Coil
-coilLen = projlength    #The length of the Coil should be the exact length of the projectile
-coilHght = 2.3e-2m |> m      #Distance from inner to outer diameter of the Coil
-wirerad = 1.6mm |> m         #The radius of 14-guage wire including insulation
-position = projlength
-
-I = 1A #Current flowing through the wire
+innerRadius = projrad+bthickness        #The Inner diameter of the Coil needs to be the Outer diameter of the barrel
+cthickness = 1inch |> m                 #The difference in the Inner diameter and Outer diameter of the Coil
+coilLen = projlength                    #The length of the Coil should be the exact length of the projectile
+coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter of the Coil
+wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
+I = 1A                                  #Current flowing through the wire
 stepSize = 1_000
 
 phys    = ProjectilePhysical(projrad,projlength,densityFe)
 mag     = ProjectileMagnetic(domainSizeFe,magstrngth,α,magMomentPerDomain,domainMagnetization,saturationMagnetization,generateMagneticDomians(phys,domainSizeFe,μ0 * saturationMagnetization),0T)
-ip      = IronProjectile(phys,mag,position)
+ip      = IronProjectile(phys,mag,position, velocity)
 bar     = Barrel(ip.physical.radius,bthickness,blength)
-coil    = Coil(bar.innerRadius+bar.thickness,cthickness,ip.physical.length,wirerad)
+coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
 
 """
 When calculating the magnetic field given off from the coil, remember to have the step size similar to the domain size in the projectile.
@@ -74,16 +74,17 @@ mem = [0T, 1T, 0.2T]
 mem = Array{BField,1}(mem)
 # closingFunction(magmin,magmax,ip,bf,pbf)
 # effectiveMagnetization(ip, bf, mem)
-
-println(volume(ip))
-
-∇B = BFieldGradient(generateBFieldGradient(coil, I, ip))
-ℒ(ip, bf)
-∂ℒ(ip, bf)
-ΔMagnetization(ip,bFieldIntegration[1], 0A/m, 0.3, 1)
-dipoleCoilForce(ip, coil, ∇B)
+# ∇B = BFieldGradient(generateBFieldGradient(coil, I, ip))
+# ℒ(ip, bf)
+# ∂ℒ(ip, bf)
+# ΔMagnetization(ip,bFieldIntegration[1], 0A/m, 0.3, 1)
+# dipoleCoilForce(ip, coil, ∇B)
 
 # bfg1 = 2T/m
 # testbfg = hcat([0T/m : 0.001T/m : bfg1]...)
 # bfg = BFieldGradient(testbfg)
 # projectileCoilTotalForce(coil, ip, bfg)
+
+println(selfInductance(coil, I)/(4Ω + resistance(coil)) |> s)
+println(mutualInductance(coil, I))
+println(projectileInducedVoltage(ip, coil) |> V)
