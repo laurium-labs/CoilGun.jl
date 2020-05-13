@@ -110,9 +110,8 @@ function current(proj::Projectile, coil::Coil, resistor::ElectricalResistance, v
     totalΩ = resistor + resistance(coil)
     arbitraryCurrent = 1A
     couplingFactor = simpleBField(coil, arbitraryCurrent, coil.length)/simpleBField(coil, arbitraryCurrent, 0m)
-    constant1 = (1 + sqrt(1 - 4 * couplingFactor^2)) / (2 * couplingFactor^2)
-    constant2 = (1 - sqrt(1 - 4 * couplingFactor^2)) / (2 * couplingFactor^2)
-    couplingRelation = exp(constant1)/(1+constant1*(constant1-1)) + exp(constant2)/(1+constant2*(constant2-1))
+    constant = (1 - sqrt(1 - 4 * couplingFactor^2)) / (2 * couplingFactor^2)
+    couplingRelation = exp(constant)/(1+constant*(constant-1))
     τ = selfInductance(coil)/totalΩ #Characteristic Time (When the current reaches 1-1/e of it's steady state value (5*τ))
     coilCurrent = voltage * (1-exp(-time / τ) * couplingRelation) / totalΩ
     projectileInducedCurrent = projectileInducedVoltage(proj, coil)/totalΩ
@@ -207,7 +206,7 @@ function airResistance(proj::Projectile)::Force
     return 6 * pi * dynamicViscosityAir * proj.physical.radius * proj.velocity
 end
 function totalForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad)::Force
-    return dipoleCoilForce(proj,∇BField) + frictionForce(proj) + airResistance(proj)
+    return dipoleCoilForce(proj,∇BField) + frictionForce(proj) + airResistance(proj) |> N
 end
 
 

@@ -62,12 +62,12 @@ bar     = Barrel(ip.physical.radius,bthickness,blength)
 coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
 
 
-t=0.001s
+t=0.1s
 I = current(ip, coil, resistor, Volts, t)
 
 B = simpleBField(coil, I, ip.position)
 ∇B = bFieldGradient(coil, I, ip.position)
 
-dM = ΔMagnetization(ip, B, 0.373, 1)
+ip.magnetic.magnetization += ΔMagnetization(ip, B, 0.373, 1)
 
-totalForce(ip,∇B)
+println(totalForce(ip,∇B))
