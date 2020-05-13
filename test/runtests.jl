@@ -61,43 +61,13 @@ ip      = IronProjectile(phys,mag,position, velocity)
 bar     = Barrel(ip.physical.radius,bthickness,blength)
 coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
 
-"""
-When calculating the magnetic field given off from the coil, remember to have the step size similar to the domain size in the projectile.
-"""
-radii = map(step -> step * (coil.length*3/2) / stepSize , 1:stepSize)
-# bFieldSummation = map(radii) do positionFromCoil
-#     return magneticFieldSummation(coil, I, positionFromCoil) |>ustrip
-# end
-
-bFieldIntegration = map(radii) do positionFromCoil
-    return magneticFieldIntegration(coil, I, positionFromCoil)
-end
-
-magmin = 0A/m
-magmax = 1A/m
-bf = 0.3T
-pbf = 0.2T
-mem = [0T, 1T, 0.2T]
-mem = Array{BField,1}(mem)
-# closingFunction(magmin,magmax,ip,bf,pbf)
-# effectiveMagnetization(ip, bf, mem)
-# ∇B = BFieldGradient(generateBFieldGradient(coil, I, ip))
-# ℒ(ip, bf)
-# ∂ℒ(ip, bf)
-# ΔMagnetization(ip,bFieldIntegration[1], 0A/m, 0.3, 1)
-# dipoleCoilForce(ip, coil, ∇B)
-
-# bfg1 = 2T/m
-# testbfg = hcat([0T/m : 0.001T/m : bfg1]...)
-# bfg = BFieldGradient(testbfg)
-# projectileCoilTotalForce(coil, ip, bfg)
-
-println(airResistance(ip) |> N)
-println(frictionForce(ip) |> N)
-
-selfInductance(coil)
-mutualInductance(coil)
-projectileInducedVoltage(ip, coil)
 
 t=0.001s
-current(ip, coil, resistor, Volts, t)
+I = current(ip, coil, resistor, Volts, t)
+
+B = simpleBField(coil, I, ip.position)
+∇B = bFieldGradient(coil, I, ip.position)
+
+dM = ΔMagnetization(ip, B, 0.373, 1)
+
+totalForce(ip,∇B)

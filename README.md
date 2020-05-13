@@ -32,7 +32,7 @@ It's not taking into consideration:
 -How the voltage produced from the capacitor changes in time.
  
 
-*All assumptions made will gradually be made to fit closer with reality. The complexity of the system will increase until either it at at the highest complexity, and matches reality, or until computation time is unreasonably long (like taking 10 minutes to complete a simulation).
+*All assumptions made will gradually be made to fit closer with reality. The complexity of the system will increase until either the simulation provieds accurate resutls and matches reality (error < 1%), or until computation time is unreasonably long (like taking 10 minutes to complete the simulation).
 
 
 ```math
