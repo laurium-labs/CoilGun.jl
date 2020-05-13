@@ -158,7 +158,7 @@ function generateBField(coil::Coil,current::Current,proj::Projectile)
     return [simpleBField(x,coil,current) for x in coilPosition]
 end
 function selfInductance(coil::Coil)::Inductance
-    #This is a simplified version for the self inductance of the coil. It is not taking into consideration the thickness of the coil, or the varying magnetic fields that pass through each loop. This is just for approximation only. When working out the math, current drops out of the equation so here it is just some random value.
+    #This is a simplified version for the self inductance of the coil. It is not taking into consideration the thickness (different layers) of the coil, or the varying magnetic fields that pass through each loop. This is just for approximation only. When working out the math, current drops out of the equation so here it is just some random value.
     arbitraryCurrent = 1A
     return simpleBField(0m, coil, arbitraryCurrent) * pi * totalNumberWindings(coil) * meanMagneticRadius(coil)^2/(3*arbitraryCurrent)
 end
@@ -171,7 +171,7 @@ end
 function projectileInducedVoltage(proj::Projectile, coil::Coil)::Voltage
     radius = meanMagneticRadius(coil)
     simpleArea = pi * radius^2
-    ∂AreaRatio_∂t = radius * proj.velocity * proj.position/(proj.position^2 + radius^2)^(3/2)
+    ∂AreaRatio_∂t = -radius * proj.velocity * proj.position/(proj.position^2 + radius^2)^(3/2)
     constant = μ0 * proj.magnetic.magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂AreaRatio_∂t
 end
