@@ -47,9 +47,16 @@ coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter o
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
 I = 1A                                  #Current flowing through the wire
 stepSize = 1_000
+resistor = 10Ω
+Volts = 15V
 
-phys    = ProjectilePhysical(projrad,projlength,densityFe)
-mag     = ProjectileMagnetic(domainSizeFe,magstrngth,α,magMomentPerDomain,domainMagnetization,saturationMagnetization,generateMagneticDomians(phys,domainSizeFe,μ0 * saturationMagnetization),0T)
+phys    = ProjectilePhysical(projrad,
+                            projlength,
+                            densityFe)
+mag     = ProjectileMagnetic(domainSizeFe,
+                            α,
+                            domainMagnetization,
+                            saturationMagnetization)
 ip      = IronProjectile(phys,mag,position, velocity)
 bar     = Barrel(ip.physical.radius,bthickness,blength)
 coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
@@ -87,3 +94,10 @@ mem = Array{BField,1}(mem)
 
 println(airResistance(ip) |> N)
 println(frictionForce(ip) |> N)
+
+selfInductance(coil)
+mutualInductance(coil)
+projectileInducedVoltage(ip, coil)
+
+t=0.001s
+current(ip, coil, resistor, Volts, t)
