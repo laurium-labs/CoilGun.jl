@@ -4,7 +4,7 @@ This program models the behavior of a ferromagnetic projectile under the influen
 The device itself can be used for a number of different applications. Some notable applications are: general nailing, clearing computer memory, material testing, scientific demonstrations, etc, etc. The goal of this project is to be able to accelerate the projectile to mach 1.
 
 
-This code takes into consideration the following effects: 
+This code takes into consideration the following effects: \n
 -Friction
 -air resistance
 -time for switches and coils to reach a steady state value
@@ -36,11 +36,11 @@ It's not taking into consideration:
 
 
 ```math
+\scrL
 ```
 
 Sources Used:
 Jiles, D. C., & Atherton, D. L. (1986). Theory of ferromagnetic hysteresis. Journal of magnetism and magnetic materials, 61(1-2), 48-60.
     This paper was used to understand the magnetization process. This describes the derivation of some of the equations used. Some of the equations used were the:
-    ```math
-    \scrL 
+    ```math \scrL 
     ```
