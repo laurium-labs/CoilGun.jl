@@ -6,7 +6,7 @@ The device itself can be used for a number of different applications. Some notab
 
 This code takes into consideration the following effects:
 
-markup: 
+Markup: 
     -Friction
 
     -air resistance
