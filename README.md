@@ -6,11 +6,12 @@ The device itself can be used for a number of different applications. Some notab
 
 This code takes into consideration the following effects:
 
--Friction
+markup: 
+    -Friction
 
--air resistance
+    -air resistance
 
--time for switches and coils to reach a steady state value
+    -time for switches and coils to reach a steady state value
 
 -energy lost in circuit and in projectile
 
