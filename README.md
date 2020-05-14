@@ -46,6 +46,7 @@ It's not taking into consideration:
 [1] Jiles, D. C., & Atherton, D. L. (1986). Theory of ferromagnetic hysteresis. Journal of magnetism and magnetic materials, 61(1-2), 48-60.
     
    - This paper was used to understand the magnetization process. This describes the derivation of some of the equations used. Some of the equations used were the:
-    
-    ```math \scrL 
-    ```
+
+```math 
+\scrL 
+```
