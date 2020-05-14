@@ -4,7 +4,7 @@ This program models the behavior of a ferromagnetic projectile under the influen
 The device itself can be used for a number of different applications. Some notable applications are: general nailing, clearing computer memory, material testing, scientific demonstrations, etc, etc. The goal of this project is to be able to accelerate the projectile to mach 1.
 
 
-This code takes into consideration the following effects: \n
+This code takes into consideration the following effects: \\
 -Friction
 -air resistance
 -time for switches and coils to reach a steady state value
