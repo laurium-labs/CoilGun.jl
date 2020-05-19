@@ -33,6 +33,7 @@ magstrngth = 1T
 saturationMagnetization = saturationMagnetizationPerKgFe * magdomiansize^3 * densityFe
 position = projlength
 velocity = 1m/s
+reversibility = 0.373
 
 #Barrel Specifications
 bthickness = 1mm |> m #Barrel thickness
@@ -56,18 +57,22 @@ phys    = ProjectilePhysical(projrad,
 mag     = ProjectileMagnetic(domainSizeFe,
                             α,
                             domainMagnetization,
-                            saturationMagnetization)
+                            saturationMagnetization,
+                            reversibility)
 ip      = IronProjectile(phys,mag,position, velocity)
 bar     = Barrel(ip.physical.radius,bthickness,blength)
 coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
 
 
 t=0.1s
+Magirr = 0A/m
+prevI = 0A
 I = current(ip, coil, resistor, Volts, t)
 
 B = simpleBField(coil, I, ip.position)
 ∇B = bFieldGradient(coil, I, ip.position)
-
-ip.magnetic.magnetization += ΔMagnetization(ip, B, 0.373, 1)
+Magirr = Mag_irr(ip, B, Magirr)
+ΔH = (∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
+ip.magnetic.magnetization += ΔMagnetization(ip, B, Magirr, ΔH)
 
 println(totalForce(ip,∇B))
