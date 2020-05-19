@@ -1,14 +1,17 @@
 module CoilGun
 
 module CreatedUnits
-  using Unitful
-  using Unitful: 𝐈, 𝐌, 𝐓, 𝐋
-  @derived_dimension BFieldGrad 𝐈^-1*𝐌*𝐓^-2*𝐋^-1
+    using Unitful
+    using Unitful: 𝐈, 𝐌, 𝐓, 𝐋
+    @derived_dimension BFieldGrad 𝐈^-1*𝐌*𝐓^-2*𝐋^-1
+    @derived_dimension Permeability 𝐈/𝐋^2
 end
+
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
-using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, 
-        Density, Inductance, ustrip, Voltage, Velocity, Time
+using Unitful: Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, 
+        Density, Inductance, ustrip, Voltage, Velocity, Time,
 using ForwardDiff
+
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
@@ -27,7 +30,7 @@ const α = 9.5e-5                                            #Interdomain Coupli
 const roomTemp = 300K                                       #Standard room Tempearture
 const domainPinningFactor = 150A/m                          #This is the domain pinning factor for Iron (transformer).
 const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
-const magMomentPerDomain = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
+const magMomentPerDomain = domainMagnetization*domainSizeFe^3#This dipole magnetic moment doesn't take hysteresis/pinning into effect           #Unreasonably Small
 const saturationMagnetizationPerKgFe = 217.6A/(m*kg)        #Saturation magnetizaiton of pure Iron per unit mass.
 const kineticFrictionCoefficientFe = 0.36                   #Kinetic friction coefficient of Mild Steel on Copper, probably not exact
 const staticFrictionCoefficientFe = 0.53                    #Static friction coefficient of copper on Steel, probably not exact
@@ -47,6 +50,7 @@ mutable struct ProjectileMagnetic <: ElectroMagnetic
     interdomainCoupling::Number
     magnetization::HField
     saturationMagnetization::HField
+    reversibility::Float64
 end
 mutable struct IronProjectile <: Projectile
     physical::Physical
@@ -101,7 +105,7 @@ end
 function projectileInducedVoltage(proj::Projectile, coil::Coil)::Voltage
     radius = meanMagneticRadius(coil)
     simpleArea = pi * radius^2
-    ∂AreaRatio_∂t = -radius * proj.velocity * proj.position/(proj.position^2 + radius^2)^(3/2)
+    ∂AreaRatio_∂t = radius * proj.velocity * proj.position/(proj.position^2 + radius^2)^(3/2)
     constant = μ0 * proj.magnetic.magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂AreaRatio_∂t
 end
@@ -117,6 +121,7 @@ function current(proj::Projectile, coil::Coil, resistor::ElectricalResistance, v
     projectileInducedCurrent = projectileInducedVoltage(proj, coil)/totalΩ
     return coilCurrent + projectileInducedCurrent
 end
+
 
 # Funcitons for the magnetic field
 #Reminder: The point starts in middle of the coil, then moves outward and goes through the front of the coil. When intPostion = coilLength it's at CoilFront.
@@ -170,23 +175,36 @@ function bFieldGradient(coil::Coil, current::Current, coilPosition::Length, glob
 end
 
 #The paper referenced for these following equaitons relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
-function ℒ(proj::Projectile, bField::BField)::Float64
+δ(inc::HField)::Int = (inc > 0A/m) ? 1 : -1
+function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::HField)::Int
+    #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the 
+    return (proj.magnetic.saturationMagnetization * ℒ(proj, bField, Mag_irr) - Mag_irr)/inc >= 0 ? 1 : 0
+end
+function Mag_irr(proj::Projectile, bField::BField, Mag_irr::HField)::HField
+    #This calculates the bulk irriversible magnetization inside the projectile.
+    (proj.magnetic.magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr)*proj.magnetic.saturationMagnetization)/(1-proj.magnetic.reversibility)
+end
+function ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
     #langevin funciton that represents the anhystesis bulk magnetization for a given material. It can be imagined as a sigmoid shape on a M-H graph.
-    a = k*roomTemp/magMomentPerDomain |> T  |>ustrip              #Constant
-    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*proj.magnetic.magnetization |>T|>ustrip #Variable
-    return coth(effectiveBField/a)-(a/effectiveBField)
+    a = k*roomTemp/magMomentPerDomain |>T  |> ustrip               #Constant
+    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*Mag_irr |> T |> ustrip#Variable
+    taylorApproxℒ = effectiveBField/(3*a) - effectiveBField^3/(45*a^3)
+    return abs(effectiveBField/a) > 0.01 ? coth(effectiveBField/a) - a/effectiveBField : taylorApproxℒ
 end
-function ∂ℒ(proj::Projectile, bField::BField)::Float64
-    #The first order derivative (with respect to the BField) of the ℒ funciton
-    a = k*roomTemp/magMomentPerDomain |> T  |>ustrip              #Constant
-    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*proj.magnetic.magnetization |>T|>ustrip #Variable
-    magnetization(var) = coth(var/a)-(a/var)
-    return ForwardDiff.derivative(magnetization,effectiveBField)
-end
-function ΔMagnetization(proj::Projectile, bField::BField, reversibility::Number, δ::Int)::HField
-    #Note: This function does produce an issue. When the changing magnetic field flips, this program continues to increase the magnetization of the projectile. I suspect this is caused by the magnetizationDifference. Unsure on how to fix this, but it isn't crutial. Also this magnetization function describes the bulk magnetization of the projectile.
-    magnetizationDifference = (proj.magnetic.saturationMagnetization  * ℒ(proj, bField)-proj.magnetic.magnetization)
-    return proj.magnetic.saturationMagnetization * ((1-reversibility)*magnetizationDifference/(δ*domainPinningFactor-α*magnetizationDifference) + reversibility*∂ℒ(proj, bField))
+function ∂ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
+    #The first order derivative (with respect to the BField) of the ℒ function
+    a = k*roomTemp/magMomentPerDomain |>T  |> ustrip               #Constant
+    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*Mag_irr |>T |>ustrip  #Variable
+    ∂taylorApproxℒ = 1/(3*a) - effectiveBField^1/(15*a^3)
+    langevin(x) = coth(x/a) - a/x
+    return abs(effectiveBField/a) > 0.01 ? ForwardDiff.derivative(langevin,effectiveBField) : ∂taylorApproxℒ
+end         
+function ΔMagnetization(proj::Projectile, bField::BField, Mag_irr::HField, ΔH::HField)::HField
+    #Change in the objects magnetization due to an external B-Field.
+    ΔM_irr = (proj.magnetic.saturationMagnetization * ℒ(proj, bField,Mag_irr) - Mag_irr)
+    numerator = δM(proj,bField,Mag_irr,ΔH) * ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * (domainPinningFactor*δ(ΔH))
+    denominator = (domainPinningFactor*δ(ΔH)) - α * numerator
+    return ΔH * numerator/denominator
 end
 
 #Force Funcitons
@@ -203,10 +221,18 @@ function frictionForce(proj::Projectile)::Force
 end
 function airResistance(proj::Projectile)::Force
     #This funciton is used to calculate the air resistance on the projectile. This current function is overly simplified and will need to be changed later for a more accurate function.
-    return 6 * pi * dynamicViscosityAir * proj.physical.radius * proj.velocity
+    return 6 * pi * dynamicViscosityAir * proj.physical.radius * -proj.velocity
 end
 function totalForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad)::Force
-    return dipoleCoilForce(proj,∇BField) + frictionForce(proj) + airResistance(proj) |> N
+    return abs(dipoleCoilForce(proj,∇BField)) > abs(frictionForce(proj)) ? dipoleCoilForce(proj,∇BField) + frictionForce(proj) + airResistance(proj) |> N : 0N
+end
+
+#Functions that calculate the change in velocity and change in position.
+function Δvel(proj::Projectile, force::Force, time::Time)::Velocity
+    return force*time/mass(proj) |> m/s
+end
+function Δpos(proj::Projectile, time::Time)::Length
+    return proj.velocity * time |> m
 end
 
 

@@ -63,3 +63,6 @@ It's not taking into consideration:
 
 [7] Zhu, B. (2001). Non-linear, irreversible magnetization processes in magnetic materials: instrumentation, measurements, modeling and application.
 - Similar to Ref.[6], but the Jiles-Atherton model that was derived in this thesis was the model used in the simulation.
+
+[8] Bastos, J., Sadowski, N. (2003). Electromagnetic Modeling by Finite Element Methods. Boca Raton: CRC Press, https://services.lib.mtu.edu:5021/10.1201/9780203911174
+- Used to obtain the Taylor series approximation of the $\mathscr{L}$ function, and a greater understanding of the derivation of the $\frac{dM}{dH}$ function.
