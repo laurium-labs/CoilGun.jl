@@ -8,7 +8,7 @@ module CreatedUnits
 end
 
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
-using Unitful: Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Velocity, Time
+using Unitful: Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Velocity, Time, Acceleration
 using ForwardDiff
 
 
@@ -108,20 +108,42 @@ function projectileInducedVoltage(proj::Projectile, coil::Coil)::Voltage
     constant = μ0 * proj.magnetic.magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂AreaRatio_∂t
 end
-function current(proj::Projectile, coil::Coil, resistor::ElectricalResistance, voltage::Voltage, time::Time)::Current
+
+function ∂projectileInducedVoltage(coil::Coil, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)
+    #This funciton describes the change in the induced voltage per change in time
+    radius = meanMagneticRadius(coil)
+    simpleArea = pi * radius^2
+    ∂∂AreaRatio_∂tt = radius * (position*acceleration/(position^2+radius^2)^(3/2) + radius^2*velocity^2/(position^2+radius^2)^(5/2)) |> s^-2
+    constant = μ0 * magnetization * totalNumberWindings(coil) * simpleArea
+    return constant * ∂∂AreaRatio_∂tt |> V/s
+end
+
+function coilCurrent(time, voltage, characteristicTime, couplingRelation, resistance)
+    return voltage * (1-exp(-time / characteristicTime) * couplingRelation) / resistance
+end
+
+function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, voltage::Voltage, time::Time)::Current
     #This function calculates the current that is traveling through a coil. This is not taking operational amplifiers into consideration.
-    totalΩ = resistor + resistance(coil)
     arbitraryCurrent = 1A
     couplingFactor = simpleBField(coil, arbitraryCurrent, coil.length)/simpleBField(coil, arbitraryCurrent, 0m)
     constant = (1 - sqrt(1 - 4 * couplingFactor^2)) / (2 * couplingFactor^2)
     couplingRelation = exp(constant)/(1+constant*(constant-1))
     τ = selfInductance(coil)/totalΩ #Characteristic Time (When the current reaches 1-1/e of it's steady state value (5*τ))
-    coilCurrent = voltage * (1-exp(-time / τ) * couplingRelation) / totalΩ
+    coilCurr(time::Time)::Current = coilCurrent(time,voltage,τ,couplingRelation,totalΩ)
     projectileInducedCurrent = projectileInducedVoltage(proj, coil)/totalΩ
-    return coilCurrent + projectileInducedCurrent
+    return coilCurr(time) + projectileInducedCurrent
 end
 
-
+function ∂Current(coil::Coil, time::Time, voltage::Voltage, totalΩ::ElectricalResistance, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)
+    #This function describes how the current through the coil changes with the change in time.
+    arbitraryCurrent = 1A
+    couplingFactor = simpleBField(coil, arbitraryCurrent, coil.length)/simpleBField(coil, arbitraryCurrent, 0m)
+    constant = (1 - sqrt(1 - 4 * couplingFactor^2)) / (2 * couplingFactor^2)
+    couplingRelation = exp(constant)/(1+constant*(constant-1))
+    τ = selfInductance(coil)/totalΩ |> s |> ustrip#Characteristic Time (When the current reaches 1-1/e of it's steady state value (5*τ))
+    coilCurr(time) = coilCurrent(time,voltage |> V |> ustrip,τ,couplingRelation,totalΩ|> Ω |> ustrip)
+    return ForwardDiff.derivative(coilCurr, time|>s |>ustrip)*1A/s + ∂projectileInducedVoltage(coil,position,velocity,acceleration,magnetization)/totalΩ
+end
 # Funcitons for the magnetic field
 #Reminder: The point starts in middle of the coil, then moves outward and goes through the front of the coil. When intPostion = coilLength it's at CoilFront.
 function magneticFieldSummation(coil::Coil, current::Current, positionFromCoil::Length)::BField
@@ -171,6 +193,11 @@ function bFieldGradient(coil::Coil, current::Current, position::Length) :: Creat
 end 
 function bFieldGradient(coil::Coil, current::Current, coilPosition::Length, globalPosition::Length)::CreatedUnits.BFieldGrad
     return bFieldGradient(coil, current, coilPosition-globalPosition)
+end
+
+function ∂SimpleBField_∂Current(coil::Coil, ∂current::Current, position::Length)
+    simpBField(∂curr::Current) = simpleBField(coil,∂curr,position)
+    return ForwardDiff.derivative(simpBField,∂current)
 end
 
 #The paper referenced for these following equaitons relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
@@ -227,12 +254,9 @@ function totalForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad)::Force
 end
 
 #Functions that calculate the change in velocity and change in position.
-function Δvel(proj::Projectile, force::Force, time::Time)::Velocity
-    return force*time/mass(proj) |> m/s
-end
-function Δpos(proj::Projectile, time::Time)::Length
-    return proj.velocity * time |> m
-end
+acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
+Δvel(acceleration::Acceleration, time::Time)::Velocity = acceleration * time |> m/s
+Δpos(velocity::Velocity, time::Time)::Length = velocity * time |> m
 
 
 #Due to the nature of the changing magnetic field, creating an array of magnetic field is unreasonable because you would have to recalculate the array after each iteration.
@@ -343,7 +367,7 @@ end
 #     totalForce = sum(dipoleCoilForce([z,ρ], proj, coil, ∇bField.amplitude[coordinateConversion(z),1])  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
 # end
 #Is it benifitial to have matricies than arrays?
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, MagneticDipoleVector, MagneticDipoleVector, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, generateBFieldGradient, generateMagneticDomians, updateDomain, ℒ, ∂ℒ, magnetization,closingFunction, effectiveMagnetization,dipoleCoilForce,projectileCoilTotalForce,totalNumberWindings, generateBField, simpleBField, ΔMagnetization, domainCoilForce, selfInductance, mutualInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr
+export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ΔMagnetization, selfInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, ∂Current, acceleration
 end
 #module
 

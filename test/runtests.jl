@@ -1,7 +1,7 @@
 using CoilGun
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
 using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, 
-                Inductance, ustrip, Voltage
+                Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 using ForwardDiff
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
@@ -49,7 +49,7 @@ wirerad = 1.6mm |> m                    #The radius of 14-guage wire including i
 I = 1A                                  #Current flowing through the wire
 stepSize = 1_000
 resistor = 10Ω
-Volts = 15V
+volts = 15V
 
 phys    = ProjectilePhysical(projrad,
                             projlength,
@@ -67,12 +67,15 @@ coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
 t=0.1s
 Magirr = 0A/m
 prevI = 0A
-I = current(ip, coil, resistor, Volts, t)
+totalΩ = resistor + resistance(coil)
+I = current(ip, coil, resistor, volts, t)
 
 B = simpleBField(coil, I, ip.position)
 ∇B = bFieldGradient(coil, I, ip.position)
 Magirr = Mag_irr(ip, B, Magirr)
 ΔH = (∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
 ip.magnetic.magnetization += ΔMagnetization(ip, B, Magirr, ΔH)
+
+∂Current(coil, t, volts, totalΩ, ip.position, velocity, acceleration(totalForce(ip, ∇B), mass(ip)), ip.magnetic.magnetization)
 
 println(totalForce(ip,∇B))
