@@ -29,7 +29,8 @@ function coilProblem!(du,u,scenario,time )
 
     B = simpleBField(scenario.coil, I, position)
     ∇B = bFieldGradient(scenario.coil, I, position)
-    accel = (totalForce(scenario.proj, ∇B, velocity[1], magnetization[1])/mass(scenario.proj)) |> m/(s^2)
+    force = totalForce(scenario.proj, ∇B, velocity[1], magnetization[1])
+    accel = (force/mass(scenario.proj)) |> m/(s^2)
     acceleration[1] = (accel) |> ustrip
     ∂Position_∂t[1] = velocity |> m/s |> ustrip
     dH = ∂HField(scenario.coil, I, scenario.voltage, totalΩ,∇B, magnetization, position, velocity, accel, t) 

@@ -260,11 +260,20 @@ function frictionForce(proj::Projectile, velocity::Velocity)::Force
 end
 function airResistance(proj::Projectile, velocity::Velocity)::Force
     #This funciton is used to calculate the air resistance on the projectile. This current function is overly simplified and will need to be changed later for a more accurate function.
-    return 6 * pi * dynamicViscosityAir * proj.physical.radius * -velocity
+    return 6 * pi * dynamicViscosityAir * proj.physical.radius * velocity
 end
 function totalForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad, velocity::Velocity, magnetization::HField)::Force
     friction = frictionForce(proj, velocity)
-    return abs(dipoleCoilForce(proj,∇BField, magnetization)) > abs(friction) ? dipoleCoilForce(proj,∇BField, magnetization) + friction + airResistance(proj, velocity) |> N : 0N
+    dipoleCoilForce(proj,∇BField, magnetization) |> N
+    frictionalForces = if velocity < 0.0m/s
+        friction + airResistance(proj, velocity)
+    else
+        -(friction + airResistance(proj, velocity))
+    end
+    if velocity == 0.0m/s && abs(dipoleCoilForce(proj,∇BField, magnetization)) < abs(frictionalForces)
+        return 0.0N
+    end
+    return dipoleCoilForce(proj,∇BField, magnetization) + frictionalForces 
 end
 
 #Functions that calculate the change in velocity and change in position.
