@@ -73,7 +73,7 @@ B = simpleBField(coil, I, position)
 ∇B = bFieldGradient(coil, I, position)
 Magirr = Mag_irr(ip, B, Magirr, magnetization)
 dH = ∂HField(coil, I, volts, totalΩ,∇B, magnetization, position, velocity, accel, t) 
-∂Mag_irr_∂H(ip, δM(ip, B, Magirr, dH), ℒ(ip, B, Magirr), Magirr)
+∂Mag_irr_∂H(ip, δ(dH), δM(ip, B, Magirr, dH), ℒ(ip, B, Magirr), Magirr)
 # (∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
 magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
 

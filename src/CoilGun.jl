@@ -148,7 +148,7 @@ function magneticFieldSummation(coil::Coil, current::Current, positionFromCoil::
     coilRadius = coil.innerRadius
     wireRad = coil.wireRadius
     μ0/2*current*sum((layerNumber*sqrt(3)*wireRad+coilRadius)^2/((layerNumber*sqrt(3)*wireRad+coilRadius)^2+(positionFromCoil-(2*wireRad*(rowNumber-numberWindings(coil)/2)))^2)^(3/2) for rowNumber=1:numberWindings(coil) for layerNumber=1:numberLayers(coil)) 
-end
+end 
 function magneticFieldIntegration(coil::Coil, current::Current, positon::Length) :: BField
     coilInnerRadius = coil.innerRadius
     coilOuterRadius = coil.outerRadius
@@ -202,7 +202,7 @@ function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::CreatedUnit
     #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the and the anhysteris magnetization is the reversible magnetization. This function should take the values of 1 or 0.
     Mrev = proj.magnetic.saturationMagnetization * ℒ(proj, bField, Mag_irr) - Mag_irr
     dummyVar = Mrev/inc
-    return (1 + round(dummyVar/sqrt(dummyVar^2)))/2
+    return round((1 + dummyVar/sqrt(dummyVar^2))/2)
 end
 function Mag_irr(proj::Projectile, bField::BField, Mag_irr::HField, magnetization::HField)::HField
     #This calculates the bulk irriversible magnetization inside the projectile.
