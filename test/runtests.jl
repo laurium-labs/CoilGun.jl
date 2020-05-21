@@ -33,6 +33,7 @@ magstrngth = 1T
 saturationMagnetization = saturationMagnetizationPerKgFe * magdomiansize^3 * densityFe
 position = projlength
 velocity = 1m/s
+accel = 0m/s^2
 reversibility = 0.373
 
 #Barrel Specifications
@@ -73,8 +74,9 @@ I = current(ip, coil, totalΩ, volts, t)
 B = simpleBField(coil, I, ip.position)
 ∇B = bFieldGradient(coil, I, ip.position)
 Magirr = Mag_irr(ip, B, Magirr)
-ΔH = (∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
-ip.magnetic.magnetization += ΔMagnetization(ip, B, Magirr, ΔH)
+dH = ∂HField(coil, I, volts, totalΩ,∇B, ip.magnetic.magnetization, position, velocity, accel, t)
+(∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
+ip.magnetic.magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH
 
 ∂current = ∂Current(coil, t, volts, totalΩ, ip.position, velocity, acceleration(totalForce(ip, ∇B), mass(ip)), ip.magnetic.magnetization)
 ∂SimpleBField_∂Current(coil, I, ip.position)

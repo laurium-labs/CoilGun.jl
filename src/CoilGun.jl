@@ -224,13 +224,16 @@ function ∂ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
     ∂taylorApproxℒ = 1/(3*a) - effectiveBField^1/(15*a^3)
     langevin(x) = coth(x/a) - a/x
     return abs(effectiveBField/a) > 0.01 ? ForwardDiff.derivative(langevin,effectiveBField) : ∂taylorApproxℒ
-end         
-function ΔMagnetization(proj::Projectile, bField::BField, Mag_irr::HField, ΔH::HField)::HField
+end
+function ∂HField(coil::Coil, current::Current, voltage::Voltage, totalΩ::ElectricalResistance,∇B::CreatedUnits.BFieldGrad, magnetization::HField, position::Length, velocity::Velocity, acceleration::Acceleration, time::Time)::HField
+    return (∇B*velocity+∂SimpleBField_∂Current(coil,current,position)*∂Current(coil,time,voltage,totalΩ,position,velocity,acceleration,magnetization))*time/μ0|>A/m
+end
+function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::HField, ΔH::HField)::Float64
     #Change in the objects magnetization due to an external B-Field.
     ΔM_irr = (proj.magnetic.saturationMagnetization * ℒ(proj, bField,Mag_irr) - Mag_irr)
-    numerator = δM(proj,bField,Mag_irr,ΔH) * ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * (domainPinningFactor*δ(ΔH))
+    numerator = δM(proj,bField,Mag_irr,ΔH) * ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * domainPinningFactor*δ(ΔH)
     denominator = (domainPinningFactor*δ(ΔH)) - α * numerator
-    return ΔH * numerator/denominator
+    return numerator/denominator
 end
 
 #Force Functions
@@ -367,7 +370,7 @@ acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 #     totalForce = sum(dipoleCoilForce([z,ρ], proj, coil, ∇bField.amplitude[coordinateConversion(z),1])  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
 # end
 #Is it benifitial to have matricies than arrays?
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ΔMagnetization, selfInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, ∂Current, acceleration, ∂SimpleBField_∂Current
+export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ∂Magnetization_∂HField, selfInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, ∂Current, acceleration, ∂SimpleBField_∂Current, ∂HField
 end
 #module
 
