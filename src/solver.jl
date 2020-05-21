@@ -13,31 +13,34 @@ struct Scenario
     initialMagnetization::HField
 end 
 
-function coilProblem!(du,u,scenario,t )
-    magnetization = view(u, 1)
+function coilProblem!(du,u,scenario,time )
+    magnetization = (u[1])A/m
     ∂Mag_∂t = view(du, 1)
-    position = view(u, 2)
+    position = (u[2])m
     ∂Position_∂t = view(du, 2)
-    velocity = view(u, 3)
+    velocity = (u[3])m/s
     acceleration = view(du, 3)
-    magIrr = view(u, 4)
+    magIrr = (u[4])A/m
     ∂MagIrr_∂t = view(du,4 )
-    B = simpleBField(scenario.coil, current, position)
-    ∇B = bFieldGradient(scenario.coil, current, position)
+    t = (time)s
 
-    acceleration[1] = totalForce(scenario.proj, ∇B, velocity[1], magnetization[1])
-    ∂Position_∂t[1] = velocity[1]
     totalΩ = scenario.resistor + resistance(scenario.coil)
-    current = current(scenario.proj, scenario.coil, totalΩ, scenario.voltage, t, magnetization, velocity, position)
-    dH = ∂HField(scenario.coil, current, scenario.voltage, totalΩ,∇B, magnetization, position, velocity, acceleration[1], t) 
-    ∂Mag_∂t[1] = ∂Magnetization_∂HField(scenario.proj, B, magIrr[1], dH) * dH 
-    ∂MagIrr_∂t[1] = ∂Mag_irr_∂H(scenario.proj, δM(scenario.proj, B, magIrr[1], dH), ℒ(scenario.proj, B, magIrr[1]), magIrr[1]) * dH
+    I = current(scenario.proj, scenario.coil, totalΩ, scenario.voltage, t, magnetization, velocity, position)
+
+    B = simpleBField(scenario.coil, I, position)
+    ∇B = bFieldGradient(scenario.coil, I, position)
+    accel = (totalForce(scenario.proj, ∇B, velocity[1], magnetization[1])/mass(scenario.proj)) |> m/(s^2)
+    acceleration[1] = (accel) |> ustrip
+    ∂Position_∂t[1] = velocity |> m/s |> ustrip
+    dH = ∂HField(scenario.coil, I, scenario.voltage, totalΩ,∇B, magnetization, position, velocity, accel, t) 
+    ∂Mag_∂t[1] = ∂Magnetization_∂HField(scenario.proj, B, magIrr, dH) * dH |> A/(m*s) |> ustrip
+    ∂MagIrr_∂t[1] = ∂Mag_irr_∂H(scenario.proj,δ(dH), δM(scenario.proj, B, magIrr, dH), ℒ(scenario.proj, B, magIrr), magIrr) * dH |> A/(m*s) |> ustrip
     nothing
 end
 
 function solveScenario(scenario::Scenario) 
-    u0 = [ scenario.initialMagnetization, scenario.initalPosition, scenario.initialVelocity, scenario.initialMagIRR]
-    tspan = (0.0s, scenario.endTime)
-    problem = ODEProblem(coilProblem!, u0,tspan)
+    u0 = [scenario.initialMagnetization |> A/m |> ustrip, scenario.initalPosition |> m |> ustrip, scenario.initialVelocity |> m/s |> ustrip, scenario.initialMagIRR |> A/m |> ustrip]
+    tspan = (0.0, scenario.endTime |> s |> ustrip)
+    problem = ODEProblem(coilProblem!, u0,tspan, scenario)
     return solve(problem)
 end

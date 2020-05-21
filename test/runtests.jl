@@ -3,6 +3,7 @@ using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, �
 using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, 
                 Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 using ForwardDiff
+using Plots
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
@@ -73,7 +74,7 @@ B = simpleBField(coil, I, position)
 ∇B = bFieldGradient(coil, I, position)
 Magirr = Mag_irr(ip, B, Magirr, magnetization)
 dH = ∂HField(coil, I, volts, totalΩ,∇B, magnetization, position, velocity, accel, t) 
-∂Mag_irr_∂H(ip, δM(ip, B, Magirr, dH), ℒ(ip, B, Magirr), Magirr)
+∂Mag_irr_∂H(ip, δ(dH), δM(ip, B, Magirr, dH), ℒ(ip, B, Magirr), Magirr)
 # (∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
 magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
 
@@ -94,4 +95,6 @@ scenario = Scenario(
     velocity,
     magnetization
 )
-solveScenario(scenario)
+sln = solveScenario(scenario)
+
+plot(sln, vars=(0,2))
