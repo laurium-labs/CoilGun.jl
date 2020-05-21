@@ -5,6 +5,7 @@ module CreatedUnits
     using Unitful: 𝐈, 𝐌, 𝐓, 𝐋
     @derived_dimension BFieldGrad 𝐈^-1*𝐌*𝐓^-2*𝐋^-1
     @derived_dimension Permeability 𝐈/𝐋^2
+    @derived_dimension HFieldRate 𝐈*𝐋^-1*𝐓^-1
 end
 
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
@@ -196,9 +197,7 @@ function ∂SimpleBField_∂Current(coil::Coil, current::Current, position::Leng
     return simpleBField(coil, current, position)/current
 end
 
-#The paper referenced for these following equaitons relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
-
-
+#The paper referenced for these following equations relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
 δ(inc::HField)::Int = inc/sqrt(inc^2)
 function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::HField)::Int
     #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the and the anhysteris magnetization is the reversible magnetization. This function should take the values of 1 or 0.
@@ -225,8 +224,9 @@ function ∂ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
     langevin(x) = coth(x/a) - a/x
     return abs(effectiveBField/a) > 0.01 ? ForwardDiff.derivative(langevin,effectiveBField) : ∂taylorApproxℒ
 end
-function ∂HField(coil::Coil, current::Current, voltage::Voltage, totalΩ::ElectricalResistance,∇B::CreatedUnits.BFieldGrad, magnetization::HField, position::Length, velocity::Velocity, acceleration::Acceleration, time::Time)::HField
-    return (∇B*velocity+∂SimpleBField_∂Current(coil,current,position)*∂Current(coil,time,voltage,totalΩ,position,velocity,acceleration,magnetization))*time/μ0|>A/m
+function ∂HField(coil::Coil, current::Current, voltage::Voltage, totalΩ::ElectricalResistance,∇B::CreatedUnits.BFieldGrad, magnetization::HField, position::Length, velocity::Velocity, acceleration::Acceleration, time::Time)::CreatedUnits.HFieldRate
+    #This function calculates the change in the HField due to the change in position and the change in current
+    return (∇B*velocity+∂SimpleBField_∂Current(coil,current,position)*∂Current(coil,time,voltage,totalΩ,position,velocity,acceleration,magnetization))/μ0|>A/m/s
 end
 function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::HField, ΔH::HField)::Float64
     #Change in the objects magnetization due to an external B-Field.
