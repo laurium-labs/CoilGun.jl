@@ -2,10 +2,13 @@ module CoilGun
 
 module CreatedUnits
     using Unitful
-    using Unitful: 𝐈, 𝐌, 𝐓, 𝐋
+    using Unitful: 𝐈, 𝐌, 𝐓, 𝐋 , T, m, A, s
     @derived_dimension BFieldGrad 𝐈^-1*𝐌*𝐓^-2*𝐋^-1
     @derived_dimension Permeability 𝐈/𝐋^2
     @derived_dimension HFieldRate 𝐈*𝐋^-1*𝐓^-1
+
+    @unit T/m "T/m" BFieldGradient 1u"𝐈^-1*𝐌*𝐓^-2*𝐋^-1" true
+    @unit A/m/s "A/m/s" HFieldRate 1u"𝐈*𝐋^-1*𝐓^-1"      true
 end
 
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
