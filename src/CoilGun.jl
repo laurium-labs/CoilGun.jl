@@ -45,24 +45,19 @@ struct ProjectilePhysical <: Physical
     length :: Length
     density :: Density
 end
-mutable struct ProjectileMagnetic <: ElectroMagnetic
+struct ProjectileMagnetic <: ElectroMagnetic
     domainSize::Length
     interdomainCoupling::Number
-    magnetization::HField
     saturationMagnetization::HField
     reversibility::Float64
 end
-mutable struct IronProjectile <: Projectile
+struct IronProjectile <: Projectile
     physical::Physical
     magnetic::ElectroMagnetic
-    position::Length       #This position is determined from the center of the coil to the center of the projectile
-    velocity::Velocity
-    #(I sense there'll be a problem when I try to incorperate multiple coils, but for now this is it).
 end
-mutable struct NickelProjectile <: Projectile
+struct NickelProjectile <: Projectile
     physical::ProjectilePhysical
     magnetic::ProjectileMagnetic
-    position::Length
 end
 struct Barrel
     innerRadius::Length
@@ -102,11 +97,11 @@ function selfInductance(coil::Coil)::Inductance
     arbitraryCurrent = 1A
     return simpleBField(coil, arbitraryCurrent, 0m) * pi * totalNumberWindings(coil) * meanMagneticRadius(coil)^2/(3*arbitraryCurrent)
 end
-function projectileInducedVoltage(proj::Projectile, coil::Coil)::Voltage
+function projectileInducedVoltage(proj::Projectile, coil::Coil, magnetization::HField, velocity::Velocity)::Voltage
     radius = meanMagneticRadius(coil)
     simpleArea = pi * radius^2
-    ∂AreaRatio_∂t = radius * proj.velocity * proj.position/(proj.position^2 + radius^2)^(3/2)
-    constant = μ0 * proj.magnetic.magnetization * totalNumberWindings(coil) * simpleArea
+    ∂AreaRatio_∂t = radius * velocity * proj.position/(proj.position^2 + radius^2)^(3/2)
+    constant = μ0 * magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂AreaRatio_∂t
 end
 function ∂projectileInducedVoltage(coil::Coil, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)
@@ -235,25 +230,34 @@ function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::H
     denominator = (domainPinningFactor*δ(ΔH)) - α * numerator
     return numerator/denominator
 end
+function ∂Magnetization(proj::Projectile, bField::BField, Mag_irr::HField, velocity::Velocity, ∇B::CreatedUnits.BFieldGrad, coil::Coil)::HField
+    #Change in the objects magnetization due to an external B-Field.
+    ΔH = (∇B * velocity + simpleBField(coil, I - prevI, position)/t) * t / μ0
+    ΔM_irr = (proj.magnetic.saturationMagnetization * ℒ(proj, bField,Mag_irr) - Mag_irr)
+    numerator = δM(proj,bField,Mag_irr,ΔH) * ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * (domainPinningFactor*δ(ΔH))
+    denominator = (domainPinningFactor*δ(ΔH)) - α * numerator
+    return ΔH * numerator/denominator
+end
 
 #Force Functions
 function dipoleCoilForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad)::Force
     #This force function assumes a number of things. 1) The magnetization of the projectile is constant throughout the material. This means that all of the magnetic domains are consistent throughout the material. 2) The magnetic field experienced at the center of the projectile is the average magnetic field experienced by the projectile. 3) The magnetization of the material can be approximated as a magnetic dipole (loop would be more accurate, but this is easier).
-    magneticDipoleMoment = proj.magnetic.magnetization * volume(proj)
+    magneticDipoleMoment = magnetization * volume(proj)
     return magneticDipoleMoment * ∇BField
 end
-function frictionForce(proj::Projectile)::Force
+function frictionForce(proj::Projectile, velocity::Velocity)::Force
     #This describes the resistive force due to friction (both static and kinetic). I know very little about the relationship between kinetic friction and velocity, but I highly doubt it's a constant relationship. More research will have to be done.
-    frictionCoefficient = abs(proj.velocity) > 0m/s ? kineticFrictionCoefficientFe : staticFrictionCoefficientFe
+    frictionCoefficient = abs(velocity) > 0m/s ? kineticFrictionCoefficientFe : staticFrictionCoefficientFe
     normalForce = mass(proj) * gn
     return frictionCoefficient * normalForce
 end
-function airResistance(proj::Projectile)::Force
+function airResistance(proj::Projectile, velocity::Velocity)::Force
     #This funciton is used to calculate the air resistance on the projectile. This current function is overly simplified and will need to be changed later for a more accurate function.
-    return 6 * pi * dynamicViscosityAir * proj.physical.radius * -proj.velocity
+    return 6 * pi * dynamicViscosityAir * proj.physical.radius * -velocity
 end
-function totalForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad)::Force
-    return abs(dipoleCoilForce(proj,∇BField)) > abs(frictionForce(proj)) ? dipoleCoilForce(proj,∇BField) + frictionForce(proj) + airResistance(proj) |> N : 0N
+function totalForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad, velocity::Velocity, magnetization::HField)::Force
+    friction = frictionForce(proj, velocity)
+    return abs(dipoleCoilForce(proj,∇BField, magnetization)) > abs(friction) ? dipoleCoilForce(proj,∇BField) + friction + airResistance(proj, velocity) |> N : 0N
 end
 
 #Functions that calculate the change in velocity and change in position.

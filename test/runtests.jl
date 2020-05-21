@@ -24,7 +24,7 @@ const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |
 const magMomentPerDomain = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
 const saturationMagnetizationPerKgFe = 217.6A/(m*kg)             #Saturation magnetizaiton of pure Iron per unit mass.
 
-
+magnetization = domainMagnetization
 #Projectile Specifications
 projrad = 3.5mm |> m
 projlength = 1inch |> m
@@ -57,10 +57,9 @@ phys    = ProjectilePhysical(projrad,
                             densityFe)
 mag     = ProjectileMagnetic(domainSizeFe,
                             α,
-                            domainMagnetization,
                             saturationMagnetization,
                             reversibility)
-ip      = IronProjectile(phys,mag,position, velocity)
+ip      = IronProjectile(phys,mag)
 bar     = Barrel(ip.physical.radius,bthickness,blength)
 coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
 
@@ -72,8 +71,8 @@ prevI = 0A
 totalΩ = resistor + resistance(coil)
 I = current(ip, coil, totalΩ, volts, t)
 
-B = simpleBField(coil, I, ip.position)
-∇B = bFieldGradient(coil, I, ip.position)
+B = simpleBField(coil, I, position)
+∇B = bFieldGradient(coil, I, position)
 Magirr = Mag_irr(ip, B, Magirr)
 dH = ∂HField(coil, I, volts, totalΩ,∇B, ip.magnetic.magnetization, position, velocity, accel, t) * dt
 # (∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
