@@ -4,6 +4,7 @@ authors = ["Jason Lehto <jason@lauriumlabs.com>"]
 version = "0.1.0"
 
 [deps]
+DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
