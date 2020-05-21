@@ -269,7 +269,13 @@ acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 Δpos(velocity::Velocity, time::Time)::Length = velocity * time |> m
 
 include("solver.jl")
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ∂Magnetization_∂HField, selfInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, ∂Current, acceleration, ∂SimpleBField_∂Current, ∂HField, ∂Mag_irr_∂H
+export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, 
+    wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, 
+    ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe, coilCrossSectionalArea, 
+    meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ∂Magnetization_∂HField, selfInductance, 
+    projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, 
+    ∂Current, acceleration, ∂SimpleBField_∂Current, ∂HField, ∂Mag_irr_∂H,
+    solveScenario, Scenario
 end
 #module
 

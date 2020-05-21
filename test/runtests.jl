@@ -79,3 +79,19 @@ magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
 
 ∂current = ∂Current(coil, t, volts, totalΩ, position, velocity, acceleration(totalForce(ip, ∇B, velocity, magnetization), mass(ip)), magnetization)
 ∂SimpleBField_∂Current(coil, I, position)
+
+endTime = 2.0s
+
+scenario = Scenario(
+    ip,
+    bar,
+    coil,
+    endTime,
+    volts,
+    resistor,
+    Magirr,
+    position,
+    velocity,
+    magnetization
+)
+solveScenario(scenario)
