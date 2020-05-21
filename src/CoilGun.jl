@@ -108,7 +108,6 @@ function projectileInducedVoltage(proj::Projectile, coil::Coil)::Voltage
     constant = μ0 * proj.magnetic.magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂AreaRatio_∂t
 end
-
 function ∂projectileInducedVoltage(coil::Coil, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)
     #This funciton describes the change in the induced voltage per change in time
     radius = meanMagneticRadius(coil)
@@ -117,11 +116,9 @@ function ∂projectileInducedVoltage(coil::Coil, position::Length, velocity::Vel
     constant = μ0 * magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂∂AreaRatio_∂tt |> V/s
 end
-
 function coilCurrent(time, voltage, characteristicTime, couplingRelation, resistance)
     return voltage * (1-exp(-time / characteristicTime) * couplingRelation) / resistance
 end
-
 function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, voltage::Voltage, time::Time)::Current
     #This function calculates the current that is traveling through a coil. This is not taking operational amplifiers into consideration.
     arbitraryCurrent = 1A
@@ -133,7 +130,6 @@ function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, vo
     projectileInducedCurrent = projectileInducedVoltage(proj, coil)/totalΩ
     return coilCurr(time) + projectileInducedCurrent
 end
-
 function ∂Current(coil::Coil, time::Time, voltage::Voltage, totalΩ::ElectricalResistance, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)
     #This function describes how the current through the coil changes with the change in time.
     arbitraryCurrent = 1A
@@ -144,7 +140,8 @@ function ∂Current(coil::Coil, time::Time, voltage::Voltage, totalΩ::Electrica
     coilCurr(time) = coilCurrent(time,voltage |> V |> ustrip,τ,couplingRelation,totalΩ|> Ω |> ustrip)
     return ForwardDiff.derivative(coilCurr, time|>s |>ustrip)*1A/s + ∂projectileInducedVoltage(coil,position,velocity,acceleration,magnetization)/totalΩ
 end
-# Funcitons for the magnetic field
+
+# Functions for the magnetic field
 #Reminder: The point starts in middle of the coil, then moves outward and goes through the front of the coil. When intPostion = coilLength it's at CoilFront.
 function magneticFieldSummation(coil::Coil, current::Current, positionFromCoil::Length)::BField
     #This calculates the magntic field from a coil through the summation of the BField from each individual loop.
@@ -176,14 +173,14 @@ function magneticFieldIntegration(coil::Coil, current::Current, coilPosition::Le
 end
 function simpleBField(coil::Coil, current::Current, position::Length)::BField
     effectiveRadius = meanMagneticRadius(coil)
-    constant = μ0*totalNumberWindings(coil)*current/2
-    mag(z::Length) = effectiveRadius^2/(effectiveRadius^2 + z^2)^(3/2)
-    return constant*mag(position)
+    constant = μ0*totalNumberWindings(coil)*(current)/2
+    mag(z) = effectiveRadius^2/(effectiveRadius^2 + z^2)^(3/2)
+    return constant*mag(position)|> T
 end
 function simpleBField(coil::Coil, current::Current, coilPosition::Length, globalPosition::Length)::BField
     return simpleBField(coil, current, coilPosition-globalPosition)
 end
-function bFieldGradient(coil::Coil, current::Current, position::Length) :: CreatedUnits.BFieldGrad
+function bFieldGradient(coil::Coil, current::Current, position::Length)::CreatedUnits.BFieldGrad
     effectiveRadius = meanMagneticRadius(coil) |> m |> ustrip
     constant = μ0*totalNumberWindings(coil)*current/2
     mag(z::Number)= effectiveRadius^2/(effectiveRadius^2 + z^2)^(3/2)
@@ -194,17 +191,20 @@ end
 function bFieldGradient(coil::Coil, current::Current, coilPosition::Length, globalPosition::Length)::CreatedUnits.BFieldGrad
     return bFieldGradient(coil, current, coilPosition-globalPosition)
 end
-
-function ∂SimpleBField_∂Current(coil::Coil, ∂current::Current, position::Length)
-    simpBField(∂curr::Current) = simpleBField(coil,∂curr,position)
-    return ForwardDiff.derivative(simpBField,∂current)
+function ∂SimpleBField_∂Current(coil::Coil, current::Current, position::Length)
+    #This function describes how the BField changes with respect to the change in current
+    return simpleBField(coil, current, position)/current
 end
 
 #The paper referenced for these following equaitons relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
-δ(inc::HField)::Int = (inc > 0A/m) ? 1 : -1
+
+
+δ(inc::HField)::Int = inc/sqrt(inc^2)
 function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::HField)::Int
-    #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the 
-    return (proj.magnetic.saturationMagnetization * ℒ(proj, bField, Mag_irr) - Mag_irr)/inc >= 0 ? 1 : 0
+    #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the and the anhysteris magnetization is the reversible magnetization. This function should take the values of 1 or 0.
+    Mrev = proj.magnetic.saturationMagnetization * ℒ(proj, bField, Mag_irr) - Mag_irr
+    dummyVar = Mrev/inc
+    return (1 + dummyVar/sqrt(dummyVar^2))/2
 end
 function Mag_irr(proj::Projectile, bField::BField, Mag_irr::HField)::HField
     #This calculates the bulk irriversible magnetization inside the projectile.
@@ -233,7 +233,7 @@ function ΔMagnetization(proj::Projectile, bField::BField, Mag_irr::HField, ΔH:
     return ΔH * numerator/denominator
 end
 
-#Force Funcitons
+#Force Functions
 function dipoleCoilForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad)::Force
     #This force function assumes a number of things. 1) The magnetization of the projectile is constant throughout the material. This means that all of the magnetic domains are consistent throughout the material. 2) The magnetic field experienced at the center of the projectile is the average magnetic field experienced by the projectile. 3) The magnetization of the material can be approximated as a magnetic dipole (loop would be more accurate, but this is easier).
     magneticDipoleMoment = proj.magnetic.magnetization * volume(proj)
@@ -367,7 +367,7 @@ acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 #     totalForce = sum(dipoleCoilForce([z,ρ], proj, coil, ∇bField.amplitude[coordinateConversion(z),1])  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
 # end
 #Is it benifitial to have matricies than arrays?
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ΔMagnetization, selfInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, ∂Current, acceleration
+export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ΔMagnetization, selfInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, ∂Current, acceleration, ∂SimpleBField_∂Current
 end
 #module
 

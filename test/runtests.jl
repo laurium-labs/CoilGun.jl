@@ -68,7 +68,7 @@ t=0.1s
 Magirr = 0A/m
 prevI = 0A
 totalΩ = resistor + resistance(coil)
-I = current(ip, coil, resistor, volts, t)
+I = current(ip, coil, totalΩ, volts, t)
 
 B = simpleBField(coil, I, ip.position)
 ∇B = bFieldGradient(coil, I, ip.position)
@@ -76,6 +76,5 @@ Magirr = Mag_irr(ip, B, Magirr)
 ΔH = (∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
 ip.magnetic.magnetization += ΔMagnetization(ip, B, Magirr, ΔH)
 
-∂Current(coil, t, volts, totalΩ, ip.position, velocity, acceleration(totalForce(ip, ∇B), mass(ip)), ip.magnetic.magnetization)
-
-println(totalForce(ip,∇B))
+∂current = ∂Current(coil, t, volts, totalΩ, ip.position, velocity, acceleration(totalForce(ip, ∇B), mass(ip)), ip.magnetic.magnetization)
+∂SimpleBField_∂Current(coil, I, ip.position)
