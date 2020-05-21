@@ -78,5 +78,5 @@ dH = ∂HField(coil, I, volts, totalΩ,∇B, magnetization, position, velocity, 
 # (∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
 magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
 
-∂current = ∂Current(coil, t, volts, totalΩ, ip.position, velocity, acceleration(totalForce(ip, ∇B), mass(ip)), ip.magnetic.magnetization)
-∂SimpleBField_∂Current(coil, I, ip.position)
+∂current = ∂Current(coil, t, volts, totalΩ, position, velocity, acceleration(totalForce(ip, ∇B, velocity, magnetization), mass(ip)), magnetization)
+∂SimpleBField_∂Current(coil, I, position)

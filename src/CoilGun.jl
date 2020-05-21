@@ -193,8 +193,8 @@ function ∂SimpleBField_∂Current(coil::Coil, current::Current, position::Leng
 end
 
 #The paper referenced for these following equations relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
-δ(inc::HField)::Int = inc/sqrt(inc^2)
-function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::HField)::Int
+δ(inc::CreatedUnits.HFieldRate)::Int = inc/sqrt(inc^2)
+function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::CreatedUnits.HFieldRate)::Int
     #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the and the anhysteris magnetization is the reversible magnetization. This function should take the values of 1 or 0.
     Mrev = proj.magnetic.saturationMagnetization * ℒ(proj, bField, Mag_irr) - Mag_irr
     dummyVar = Mrev/inc
@@ -223,7 +223,7 @@ function ∂HField(coil::Coil, current::Current, voltage::Voltage, totalΩ::Elec
     #This function calculates the change in the HField due to the change in position and the change in current
     return (∇B*velocity+∂SimpleBField_∂Current(coil,current,position)*∂Current(coil,time,voltage,totalΩ,position,velocity,acceleration,magnetization))/μ0|>A/m/s
 end
-function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::HField, ΔH::HField)::Float64
+function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::HField, ΔH::CreatedUnits.HFieldRate)::Float64
     #Change in the objects magnetization due to an external B-Field.
     ΔM_irr = (proj.magnetic.saturationMagnetization * ℒ(proj, bField,Mag_irr) - Mag_irr)
     numerator = δM(proj,bField,Mag_irr,ΔH) * ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * domainPinningFactor*δ(ΔH)
