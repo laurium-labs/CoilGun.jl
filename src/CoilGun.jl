@@ -7,13 +7,14 @@ module CreatedUnits
     @derived_dimension Permeability 𝐈/𝐋^2
     @derived_dimension HFieldRate 𝐈*𝐋^-1*𝐓^-1
 
-    @unit T/m "T/m" BFieldGradient 1u"𝐈^-1*𝐌*𝐓^-2*𝐋^-1" true
-    @unit A/m/s "A/m/s" HFieldRate 1u"𝐈*𝐋^-1*𝐓^-1"      true
+    @unit T/m "T/m" BFieldGradient 1T/m true
+    @unit A/m/s "A/m/s" HFieldRate 1A/(m*s)      true
 end
 
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
 using Unitful: Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Velocity, Time, Acceleration
 using ForwardDiff
+using DifferentialEquations
 
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
@@ -201,14 +202,14 @@ function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::CreatedUnit
     #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the and the anhysteris magnetization is the reversible magnetization. This function should take the values of 1 or 0.
     Mrev = proj.magnetic.saturationMagnetization * ℒ(proj, bField, Mag_irr) - Mag_irr
     dummyVar = Mrev/inc
-    return (1 + dummyVar/sqrt(dummyVar^2))/2
+    return (1 + round(dummyVar/sqrt(dummyVar^2)))/2
 end
 function Mag_irr(proj::Projectile, bField::BField, Mag_irr::HField, magnetization::HField)::HField
     #This calculates the bulk irriversible magnetization inside the projectile.
     (magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr)*proj.magnetic.saturationMagnetization)/(1-proj.magnetic.reversibility)
 end
-function ∂Mag_irr_∂H(proj::Projectile, deltaM::Int, langevin::Float64, Mag_irr::HField)::HField
-    return deltaM*(proj.magnetic.saturationMagnetization * langevin - Mag_irr)
+function ∂Mag_irr_∂H(proj::Projectile, delta::Int, deltaM::Int, langevin::Float64, Mag_irr::HField)::Float64
+    return deltaM*(proj.magnetic.saturationMagnetization * langevin - Mag_irr)/(domainPinningFactor*delta)
 end
 function ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
     #langevin funciton that represents the anhystesis bulk magnetization for a given material. It can be imagined as a sigmoid shape on a M-H graph.
@@ -231,9 +232,9 @@ function ∂HField(coil::Coil, current::Current, voltage::Voltage, totalΩ::Elec
 end
 function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::HField, ∂H::CreatedUnits.HFieldRate)::Float64
     #Change in the objects magnetization due to an external B-Field.
-    ΔM_irr = (proj.magnetic.saturationMagnetization * ℒ(proj, bField,Mag_irr) - Mag_irr)
-    numerator = δM(proj,bField,Mag_irr,∂H) * ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * domainPinningFactor*δ(∂H)
-    denominator = (domainPinningFactor*δ(∂H)) - α * numerator
+    ΔM_irr = ∂Mag_irr_∂H(proj, δ(∂H), δM(proj,bField,Mag_irr,∂H), ℒ(proj, bField, Mag_irr), Mag_irr)
+    numerator = ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr)
+    denominator = 1 - α * numerator
     return numerator/denominator
 end
 function ∂Magnetization(proj::Projectile, bField::BField, Mag_irr::HField, velocity::Velocity, ∇B::CreatedUnits.BFieldGrad, coil::Coil)::HField
