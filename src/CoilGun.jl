@@ -204,6 +204,9 @@ function Mag_irr(proj::Projectile, bField::BField, Mag_irr::HField, magnetizatio
     #This calculates the bulk irriversible magnetization inside the projectile.
     (magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr)*proj.magnetic.saturationMagnetization)/(1-proj.magnetic.reversibility)
 end
+function ∂Mag_irr_∂H(proj::Projectile, deltaM::Int, langevin::Float64, Mag_irr::HField)::HField
+    return deltaM*(proj.magnetic.saturationMagnetization * langevin - Mag_irr)
+end
 function ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
     #langevin funciton that represents the anhystesis bulk magnetization for a given material. It can be imagined as a sigmoid shape on a M-H graph.
     a = k*roomTemp/magMomentPerDomain |>T  |> ustrip               #Constant
@@ -266,7 +269,7 @@ acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 Δpos(velocity::Velocity, time::Time)::Length = velocity * time |> m
 
 
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ∂Magnetization_∂HField, selfInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, ∂Current, acceleration, ∂SimpleBField_∂Current, ∂HField
+export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ∂Magnetization_∂HField, selfInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, ∂Current, acceleration, ∂SimpleBField_∂Current, ∂HField, ∂Mag_irr_∂H
 end
 #module
 
