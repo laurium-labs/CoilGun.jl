@@ -97,10 +97,10 @@ function selfInductance(coil::Coil)::Inductance
     arbitraryCurrent = 1A
     return simpleBField(coil, arbitraryCurrent, 0m) * pi * totalNumberWindings(coil) * meanMagneticRadius(coil)^2/(3*arbitraryCurrent)
 end
-function projectileInducedVoltage(proj::Projectile, coil::Coil, magnetization::HField, velocity::Velocity)::Voltage
+function projectileInducedVoltage(proj::Projectile, coil::Coil, magnetization::HField, velocity::Velocity, position::Length)::Voltage
     radius = meanMagneticRadius(coil)
     simpleArea = pi * radius^2
-    ∂AreaRatio_∂t = radius * velocity * proj.position/(proj.position^2 + radius^2)^(3/2)
+    ∂AreaRatio_∂t = radius * velocity * position/(position^2 + radius^2)^(3/2)
     constant = μ0 * magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂AreaRatio_∂t
 end
@@ -115,7 +115,7 @@ end
 function coilCurrent(time, voltage, characteristicTime, couplingRelation, resistance)
     return voltage * (1-exp(-time / characteristicTime) * couplingRelation) / resistance
 end
-function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, voltage::Voltage, time::Time)::Current
+function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, voltage::Voltage, time::Time, magnetization::HField, velocity::Velocity, position)::Current
     #This function calculates the current that is traveling through a coil. This is not taking operational amplifiers into consideration.
     arbitraryCurrent = 1A
     couplingFactor = simpleBField(coil, arbitraryCurrent, coil.length)/simpleBField(coil, arbitraryCurrent, 0m)
@@ -123,7 +123,7 @@ function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, vo
     couplingRelation = exp(constant)/(1+constant*(constant-1))
     τ = selfInductance(coil)/totalΩ #Characteristic Time (When the current reaches 1-1/e of it's steady state value (5*τ))
     coilCurr(time::Time)::Current = coilCurrent(time,voltage,τ,couplingRelation,totalΩ)
-    projectileInducedCurrent = projectileInducedVoltage(proj, coil)/totalΩ
+    projectileInducedCurrent = projectileInducedVoltage(proj, coil, magnetization, velocity, position)/totalΩ
     return coilCurr(time) + projectileInducedCurrent
 end
 function ∂Current(coil::Coil, time::Time, voltage::Voltage, totalΩ::ElectricalResistance, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)
@@ -200,9 +200,9 @@ function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::HField)::In
     dummyVar = Mrev/inc
     return (1 + dummyVar/sqrt(dummyVar^2))/2
 end
-function Mag_irr(proj::Projectile, bField::BField, Mag_irr::HField)::HField
+function Mag_irr(proj::Projectile, bField::BField, Mag_irr::HField, magnetization::HField)::HField
     #This calculates the bulk irriversible magnetization inside the projectile.
-    (proj.magnetic.magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr)*proj.magnetic.saturationMagnetization)/(1-proj.magnetic.reversibility)
+    (magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr)*proj.magnetic.saturationMagnetization)/(1-proj.magnetic.reversibility)
 end
 function ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
     #langevin funciton that represents the anhystesis bulk magnetization for a given material. It can be imagined as a sigmoid shape on a M-H graph.
@@ -240,7 +240,7 @@ function ∂Magnetization(proj::Projectile, bField::BField, Mag_irr::HField, vel
 end
 
 #Force Functions
-function dipoleCoilForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad)::Force
+function dipoleCoilForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad, magnetization::HField)::Force
     #This force function assumes a number of things. 1) The magnetization of the projectile is constant throughout the material. This means that all of the magnetic domains are consistent throughout the material. 2) The magnetic field experienced at the center of the projectile is the average magnetic field experienced by the projectile. 3) The magnetization of the material can be approximated as a magnetic dipole (loop would be more accurate, but this is easier).
     magneticDipoleMoment = magnetization * volume(proj)
     return magneticDipoleMoment * ∇BField
@@ -257,7 +257,7 @@ function airResistance(proj::Projectile, velocity::Velocity)::Force
 end
 function totalForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad, velocity::Velocity, magnetization::HField)::Force
     friction = frictionForce(proj, velocity)
-    return abs(dipoleCoilForce(proj,∇BField, magnetization)) > abs(friction) ? dipoleCoilForce(proj,∇BField) + friction + airResistance(proj, velocity) |> N : 0N
+    return abs(dipoleCoilForce(proj,∇BField, magnetization)) > abs(friction) ? dipoleCoilForce(proj,∇BField, magnetization) + friction + airResistance(proj, velocity) |> N : 0N
 end
 
 #Functions that calculate the change in velocity and change in position.
@@ -266,114 +266,6 @@ acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 Δpos(velocity::Velocity, time::Time)::Length = velocity * time |> m
 
 
-#Due to the nature of the changing magnetic field, creating an array of magnetic field is unreasonable because you would have to recalculate the array after each iteration.
-
-# function generateBFieldGradient(coil::Coil,current::Current,proj::Projectile)
-#     #This creates a gradient of the BField along the range of the BField.
-#     function bFieldGradient(coil::Coil, current::Current, position::Length) :: CreatedUnits.BFieldGrad
-#         effectiveRadius = meanMagneticRadius(coil) |> m |> ustrip
-#         constant = μ0*totalNumberWindings(coil)*current/2
-#         mag(z::Number)= effectiveRadius^2/(effectiveRadius^2 + z^2)^(3/2)
-#         magGradient(z::Number) = ForwardDiff.derivative(mag, z)/m^2
-#         position = position |> m |> ustrip
-#         return constant*magGradient(position)
-#     end 
-#     integrationRange = 3*coil.length/2 |> m
-#     dx = proj.magnetic.domainSize/2 |> m
-#     coilPosition = 0m:dx:integrationRange
-#     return [bFieldGradient(coil,current,x) for x in coilPosition]
-# end
-# function generateBField(coil::Coil,current::Current,proj::Projectile)
-    # integrationRange = 3*coil.length/2 |> m
-    # dx = proj.magnetic.domainSize/2 |> m
-    # coilPosition = 0m:dx:integrationRange
-    # return [simpleBField(x,coil,current) for x in coilPosition]
-# end
-
-# Magnetic Domain functions
-# function generateMagneticDomians(physical::ProjectilePhysical, domainSize::Length, magneticStrengthperDomain::BField)
-
-#     """A function that calculates the initial orientation of the magnetic domains along a 2-D slice of the projectile. """
-#     numRings    = trunc(Int, physical.radius/domainSize)         #Number of concentric rings around the center of the rod that make up the domains (Rows)
-#     numSlices   = trunc(Int, physical.length/domainSize)         #How many times the iron rod is sliced along the zAxis (Collumns)
-#     #How the magnetic field and the domains interact
-#     return [MagneticDipoleVector(exp(2*pi*rand()*im)*magneticStrengthperDomain) for slices in 1:numSlices, rings in 1:numRings]
-# end
-# function updateDomain(ironproj::Projectile,coil::Coil,bField::BField)
-#     """
-#     Here is where the magnetic moment of the domains is oriented with reference to the direction of the external magnetic field. I'm currently using trig to calculate the new direction using exponentials (e.g. exp[iθ]). This makes it easy to change the angle of the vector. This function seems pretty slow, and could probably be done more efficiently.
-#     """
-#     projLengthSize,radialLengthSize = size(ironproj.magnetic.domains)
-#     coilEdgeToProjEdge = ironproj.position - (coil.length+ironproj.physical.length)/2
-#     Δρ = ironproj.physical.radius/radialLengthSize
-#     Δz =ironproj.physical.length/projLengthSize
-
-#     #Both of these for loop probably could probably be replaced with a faster way to calculate the new domain orientation using mapping, but I know this works.
-#     for ρ in 1:radialLengthSize #This for loop probably could be removed in place of creating an array with the desired values and calling them in the zAxis for loop
-#         ρAxis = meanMagneticRadius(coil) - ρ*Δρ
-#         for z in 1:projLengthSize
-#             zAxis = z*Δz+coilEdgeToProjEdge
-#             saturationAngle = atan(zAxis/ρAxis)+pi/2   #The MagneticDipoleVector must be pointed tangently from the meanMagneticRadius. There's probably a more efficient way to calculate this angle.
-#             #What is being done here is i'm checking the orientation of the current magnetization, comparing it to the angle it would be at if the rod were fully saturated, and deciding which way from the saturation angle the new angle should be pointing.
-#             δ = asin(imag(ironproj.magnetic.domains[z,ρ].vector))-saturationAngle > pi ? 1 : -1 #Ask Brent if calling the specific angle is correct
-#             actualAngle = saturationAngle + acos((ironproj.magnetic.magnetization/saturationMagnetizationFe(ironproj)) |> ustrip) * δ
-#             #This actual angle is accounting for domain wall movement and pinning and is based off of the B-H curve for magnetization of a ferromaterial.
-#             θ = abs(zAxis) > coil.length/2 ? actualAngle : 0
-#             ironproj.magnetic.domains[z,ρ] = MagneticDipoleVector(exp(θ*im)*ironproj.magnetic.magneticStrengthperDomain)
-#         end
-#     end
-#     return ironproj.magnetic.domains
-# end
-
-# function magnetization(proj::Projectile, magField::BField, δ::Int)::HField
-#     #This funciton is the basic funciton that the closing function and the effective magnetism is built out of. There are a couple different types: The normal funciton where theere are no special parameters, the reversal function that is the magnetization of the reversal point, the last magnetization which is the previous magnetization point, the + magnetization where the change in mag is positive, and correspondingly the - mag where the change is negative. This will have to be performed at each element of the projectile.
-#     return proj.magnetic.saturationMagnetization * (langevin(proj, magField, 0)-domainPinningFactor*δ*langevin(proj, magField, 1)+domainPinningFactor^2*langevin(proj, magField, 2))
-# end
-
-# function closingFunction(magnetizationMinimum::HField, magnetizationMaximum::HField, proj::Projectile, bField::BField, prevBField::BField)::Float64
-#     #Function insures that the B-H curve in the projectile has fixed endpoints and loops around that.
-#     #The minimum and maximum magnetization points correspond to the max and min HFields that the point will experience.
-#     if (bField - prevBField) >= 0T
-#         δplus = 1
-#         δminus = 0
-#     else
-#         δplus = 0
-#         δminus = -1
-#     end
-#     return (magnetization(proj, bField, δminus)-magnetizationMinimum)/(magnetization(proj, bField, δplus)-magnetizationMaximum)
-# end
-
-# function effectiveMagnetization(proj::Projectile, bField::BField, bFieldMemory::Array{BField})::HField
-#     #Question: Does the effective magnetizaiton describe the whole projectile, or could it describe a cell? No, using the Wiess Mean field theory this effective magnetization describes the entire projectile.
-#     #magnetizationReverse is the point at where the HField reverses direction.
-#     bMin = bFieldMemory[1]
-#     bMax = bFieldMemory[2]
-#     previousBField = bFieldMemory[3]
-#     δ = (bField - previousBField) > 0T ? 1 : 0
-#     magnetizationMinimum = magnetization(proj, bMin, -δ)
-#     magnetizationMaximum = magnetization(proj, bMax, δ)
-#     magnetizationReverse = (bField - previousBField) > 0T ? magnetizationMinimum : magnetizationMaximum
-#     Λ = closingFunction(magnetizationMinimum, magnetizationMaximum, proj, bField, previousBField)
-#     return Λ * (proj.magnetic.magnetization-magnetizationReverse)
-# end
-# #Push dealing with the whole projectile to the end, then sum the contributions of each cell. Meaning this is performed iteratively on each element.
-# #Note: that the positonAlongProjectile is with respect to the coil. Only need to worry about force in X direction
-# function domainCoilForce(positonAlongProjectile::Array{Int}, proj::Projectile, coil::Coil, bFieldGrad::CreatedUnits.BFieldGrad) :: Force
-#     coilEdgeToProjEdge = proj.position - (coil.length+proj.physical.length)/2 |> m
-#     heightDifference = meanMagneticRadius(coil) - positonAlongProjectile[2]*proj.magnetic.domainSize |> m
-#     magneticMoment = proj.magnetic.magnetization * magDomainVol(proj) * real(proj.magnetic.domains[positonAlongProjectile[1],positonAlongProjectile[2]].angle)
-#     return  magneticMoment * bFieldGrad * heightDifference/sqrt(heightDifference^2+coilEdgeToProjEdge^2)
-# end
-
-# function projectileCoilTotalForce(coil::Coil, proj::Projectile, ∇bField::BFieldGradient)
-#     projLengthSize,radialLengthSize = size(proj.magnetic.domains)
-#     elementSize = (3*coil.length/2)/size(∇bField.amplitude)[1] |> m #The span of the B-field
-
-#     #The coordinateConversion function converts the incremental location within the projectile to the incremental location within the magnetic field.
-#     coordinateConversion(x::Int) = Int(round((proj.position+(x-projLengthSize/2)*proj.magnetic.domainSize)/elementSize) |> ustrip)
-#     totalForce = sum(dipoleCoilForce([z,ρ], proj, coil, ∇bField.amplitude[coordinateConversion(z),1])  for z = 1:projLengthSize for ρ = 1:radialLengthSize)
-# end
-#Is it benifitial to have matricies than arrays?
 export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ∂Magnetization_∂HField, selfInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, ∂Current, acceleration, ∂SimpleBField_∂Current, ∂HField
 end
 #module

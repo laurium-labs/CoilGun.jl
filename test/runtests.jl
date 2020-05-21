@@ -64,19 +64,19 @@ bar     = Barrel(ip.physical.radius,bthickness,blength)
 coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
 
 
-dt=0.1s
+Δt=0.1s
 t = 2s
 Magirr = 0A/m
 prevI = 0A
 totalΩ = resistor + resistance(coil)
-I = current(ip, coil, totalΩ, volts, t)
+I = current(ip, coil, totalΩ, volts, t, magnetization, velocity, position)
 
 B = simpleBField(coil, I, position)
 ∇B = bFieldGradient(coil, I, position)
-Magirr = Mag_irr(ip, B, Magirr)
-dH = ∂HField(coil, I, volts, totalΩ,∇B, ip.magnetic.magnetization, position, velocity, accel, t) * dt
+Magirr = Mag_irr(ip, B, Magirr, magnetization)
+dH = ∂HField(coil, I, volts, totalΩ,∇B, magnetization, position, velocity, accel, t) 
 # (∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
-ip.magnetic.magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH
+magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
 
 ∂current = ∂Current(coil, t, volts, totalΩ, ip.position, velocity, acceleration(totalForce(ip, ∇B), mass(ip)), ip.magnetic.magnetization)
 ∂SimpleBField_∂Current(coil, I, ip.position)
