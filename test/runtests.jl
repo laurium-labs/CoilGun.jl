@@ -67,7 +67,6 @@ coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
 Δt=0.1s
 t = 2s
 Magirr = 0A/m
-prevI = 0A
 totalΩ = resistor + resistance(coil)
 I = current(ip, coil, totalΩ, volts, t, magnetization, velocity, position)
 B = simpleBField(coil, I, position)

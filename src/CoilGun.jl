@@ -115,7 +115,7 @@ end
 function coilCurrent(time, voltage, characteristicTime, couplingRelation, resistance)
     return voltage * (1-exp(-time / characteristicTime) * couplingRelation) / resistance
 end
-function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, voltage::Voltage, time::Time, magnetization::HField, velocity::Velocity, position)::Current
+function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, voltage::Voltage, time::Time, magnetization::HField, velocity::Velocity, position::Length)::Current
     #This function calculates the current that is traveling through a coil. This is not taking operational amplifiers into consideration.
     arbitraryCurrent = 1A
     couplingFactor = simpleBField(coil, arbitraryCurrent, coil.length)/simpleBField(coil, arbitraryCurrent, 0m)
@@ -226,11 +226,11 @@ function ∂HField(coil::Coil, current::Current, voltage::Voltage, totalΩ::Elec
     #This function calculates the change in the HField due to the change in position and the change in current
     return (∇B*velocity+∂SimpleBField_∂Current(coil,current,position)*∂Current(coil,time,voltage,totalΩ,position,velocity,acceleration,magnetization))/μ0|>A/m/s
 end
-function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::HField, ΔH::CreatedUnits.HFieldRate)::Float64
+function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::HField, ∂H::CreatedUnits.HFieldRate)::Float64
     #Change in the objects magnetization due to an external B-Field.
     ΔM_irr = (proj.magnetic.saturationMagnetization * ℒ(proj, bField,Mag_irr) - Mag_irr)
-    numerator = δM(proj,bField,Mag_irr,ΔH) * ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * domainPinningFactor*δ(ΔH)
-    denominator = (domainPinningFactor*δ(ΔH)) - α * numerator
+    numerator = δM(proj,bField,Mag_irr,∂H) * ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * domainPinningFactor*δ(∂H)
+    denominator = (domainPinningFactor*δ(∂H)) - α * numerator
     return numerator/denominator
 end
 function ∂Magnetization(proj::Projectile, bField::BField, Mag_irr::HField, velocity::Velocity, ∇B::CreatedUnits.BFieldGrad, coil::Coil)::HField
@@ -268,7 +268,7 @@ acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 Δvel(acceleration::Acceleration, time::Time)::Velocity = acceleration * time |> m/s
 Δpos(velocity::Velocity, time::Time)::Length = velocity * time |> m
 
-
+include("solver.jl")
 export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe,coilCrossSectionalArea, meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ∂Magnetization_∂HField, selfInductance, projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, ∂Current, acceleration, ∂SimpleBField_∂Current, ∂HField, ∂Mag_irr_∂H
 end
 #module
