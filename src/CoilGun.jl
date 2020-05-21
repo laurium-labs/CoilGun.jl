@@ -7,8 +7,8 @@ module CreatedUnits
     @derived_dimension Permeability 𝐈/𝐋^2
     @derived_dimension HFieldRate 𝐈*𝐋^-1*𝐓^-1
 
-    @unit T/m "T/m" BFieldGradient 1T/m true
-    @unit A/m/s "A/m/s" HFieldRate 1A/(m*s)      true
+    @unit T_m "T/m" BFieldGradient 1T/m true
+    @unit A_ms "A/m/s" HFieldRate 1A/(m*s)      true
 end
 
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn

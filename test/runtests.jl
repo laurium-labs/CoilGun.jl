@@ -3,6 +3,7 @@ using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, �
 using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, 
                 Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 using ForwardDiff
+using Plots
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
@@ -94,4 +95,6 @@ scenario = Scenario(
     velocity,
     magnetization
 )
-solveScenario(scenario)
+sln = solveScenario(scenario)
+
+plot(sln, vars=(0,2))
