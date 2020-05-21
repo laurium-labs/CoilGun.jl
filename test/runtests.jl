@@ -28,12 +28,12 @@ const saturationMagnetizationPerKgFe = 217.6A/(m*kg)             #Saturation mag
 magnetization = domainMagnetization
 #Projectile Specifications
 projrad = 3.5mm |> m
-projlength = 1inch |> m
+projlength = 1.0inch |> m
 magdomiansize = 26.5μm |> m   #From literature, it is actually 26.5 nm, this value is not being used because I would have no memory left.
 magstrngth = 1T
 saturationMagnetization = saturationMagnetizationPerKgFe * magdomiansize^3 * densityFe
 position = projlength
-velocity = 1m/s
+velocity = -0.5m/s
 accel = 0m/s^2
 reversibility = 0.373
 
@@ -69,7 +69,7 @@ coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
 t = 2s
 Magirr = 0A/m
 totalΩ = resistor + resistance(coil)
-I = current(ip, coil, totalΩ, volts, t, magnetization, velocity, position)
+I = CoilGun.current(ip, coil, totalΩ, volts, t, magnetization, velocity, position)
 B = simpleBField(coil, I, position)
 ∇B = bFieldGradient(coil, I, position)
 Magirr = Mag_irr(ip, B, Magirr, magnetization)
