@@ -99,7 +99,7 @@ meanMagneticRadius(coil::Coil)::Length      = 2*coil.innerRadius*coil.outerRadiu
 function selfInductance(coil::Coil)::Inductance
     #This is a simplified version for the self inductance of the coil. It is not taking into consideration the thickness (different layers) of the coil, or the varying magnetic fields that pass through each loop. This is just for approximation only. When working out the math, current drops out of the equation so here it is just some random value.
     arbitraryCurrent = 1A
-    return simpleBField(coil, arbitraryCurrent, 0m) * pi * totalNumberWindings(coil) * meanMagneticRadius(coil)^2/(3*arbitraryCurrent)
+    return bFieldCoil(coil, arbitraryCurrent, 0m) * pi * totalNumberWindings(coil) * meanMagneticRadius(coil)^2/(3*arbitraryCurrent)
 end
 function projectileInducedVoltage(proj::Projectile, coil::Coil, magnetization::HField, velocity::Velocity, position::Length)::Voltage
     radius = meanMagneticRadius(coil)
@@ -122,7 +122,7 @@ end
 function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, voltage::Voltage, time::Time, magnetization::HField, velocity::Velocity, position::Length)::Current
     #This function calculates the current that is traveling through a coil. This is not taking operational amplifiers into consideration.
     arbitraryCurrent = 1A
-    couplingFactor = simpleBField(coil, arbitraryCurrent, coil.length)/simpleBField(coil, arbitraryCurrent, 0m)
+    couplingFactor = bFieldCoil(coil, arbitraryCurrent, coil.length)/bFieldCoil(coil, arbitraryCurrent, 0m)
     constant = (1 - sqrt(1 - 4 * couplingFactor^2)) / (2 * couplingFactor^2)
     couplingRelation = exp(constant)/(1+constant*(constant-1))
     τ = selfInductance(coil)/totalΩ #Characteristic Time (When the current reaches 1-1/e of it's steady state value (5*τ))
@@ -133,7 +133,7 @@ end
 function ∂Current(coil::Coil, time::Time, voltage::Voltage, totalΩ::ElectricalResistance, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)
     #This function describes how the current through the coil changes with the change in time.
     arbitraryCurrent = 1A
-    couplingFactor = simpleBField(coil, arbitraryCurrent, coil.length)/simpleBField(coil, arbitraryCurrent, 0m)
+    couplingFactor = bFieldCoil(coil, arbitraryCurrent, coil.length)/bFieldCoil(coil, arbitraryCurrent, 0m)
     constant = (1 - sqrt(1 - 4 * couplingFactor^2)) / (2 * couplingFactor^2)
     couplingRelation = exp(constant)/(1+constant*(constant-1))
     τ = selfInductance(coil)/totalΩ |> s |> ustrip#Characteristic Time (When the current reaches 1-1/e of it's steady state value (5*τ))
@@ -191,9 +191,34 @@ end
 function bFieldGradient(coil::Coil, current::Current, coilPosition::Length, globalPosition::Length)::CreatedUnits.BFieldGrad
     return bFieldGradient(coil, current, coilPosition-globalPosition)
 end
-function ∂SimpleBField_∂Current(coil::Coil, current::Current, position::Length)
+function ∂BField_∂Current(coil::Coil, current::Current, position::Length)
     #This function describes how the BField changes with respect to the change in current
-    return simpleBField(coil, current, position)/current
+    return bFieldCoil(coil, current, position)/current
+end
+function bFieldCoil(coil::Coil, current::Current, position::Length)::BField
+    # This function describes how the magnetic field propagates around a 3-D coil
+    innerRad = coil.innerRadius
+    outerRad = coil.outerRadius
+    length = coil.length
+    crossSectionalArea = (outerRad - innerRad)*length
+    constant = μ0/(crossSectionalArea*(outerRad - innerRad))
+    α = position + length/2
+    B = α - length
+    variable(a::Length) = a*(sqrt(a^2+outerRad^2)-sqrt(a^2 + innerRad^2))
+    return constant*current*totalNumberWindings(coil)*(variable(α)-variable(B)) |> T
+end
+function ∇BFieldCoil(coil::Coil, current::Current, position::Length)::CreatedUnits.BFieldGrad
+    # This function describs the change in the magnetic field of a coil with the change in position
+    innerRad = coil.innerRadius
+    outerRad = coil.outerRadius
+    length = coil.length
+    crossSectionalArea = (outerRad - innerRad)*length
+    constant = (μ0/(crossSectionalArea*(outerRad - innerRad)))
+    α = position + length/2
+    B = position - length/2
+    variable(a) = a*(sqrt(a^2+(outerRad|>ustrip)^2)-sqrt(a^2 + (innerRad|>ustrip)^2))
+    ∇variable(a::Length)::Length = ForwardDiff.derivative(variable, a|>ustrip)*1m
+    return constant*current*totalNumberWindings(coil)*(∇variable(α)-∇variable(B)) |> T/m
 end
 
 #The paper referenced for these following equations relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
