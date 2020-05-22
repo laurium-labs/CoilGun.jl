@@ -35,7 +35,7 @@ function coilProblem!(du,u,scenario,time )
     ∂Position_∂t[1] = velocity |> m/s |> ustrip
     dH = ∂HField(scenario.coil, I, scenario.voltage, totalΩ,∇B, magnetization, position, velocity, accel, t) 
     ∂Mag_∂t[1] = ∂Magnetization_∂HField(scenario.proj, B, magIrr, dH) * dH |> A/(m*s) |> ustrip
-    ∂MagIrr_∂t[1] = ∂Mag_irr_∂H(scenario.proj,δ(dH), δM(scenario.proj, B, magIrr, dH), ℒ(scenario.proj, B, magIrr), magIrr) * dH |> A/(m*s) |> ustrip
+    ∂MagIrr_∂t[1] = ∂Mag_irr_∂He(scenario.proj,δ(dH), δM(scenario.proj, B, magIrr, dH), ℒ(scenario.proj, B, magIrr), magIrr) * dH |> A/(m*s) |> ustrip
     nothing
 end
 

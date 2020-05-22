@@ -18,24 +18,29 @@ const magPerFeAtom = currieTempFe*k/bohrMagnetonPerAtomFe   #This is the magneti
 const magPerFeDomain = magPerFeAtom*numberAtomsperDomainFe  #Magnetic field of the domain
 const χFe = 200_000                                         #Magnetic susceptibility of iron at 20 C (unitless)
 const μ = μ0*(1+χFe)                                        #Magnetic pearmeability of iron
-const α = 9.5e-5                                            #Interdomain Coupling Factor (for an iron transformer)
 const roomTemp = 293K                                       #Standard room Tempearture
-const domainPinningFactor = 150A/m                          #This is the domain pinning factor for Iron (transformer)
 const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
-const magMomentPerDomain = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
 const saturationMagnetizationPerKgFe = 217.6A/(m*kg)             #Saturation magnetizaiton of pure Iron per unit mass.
+const kineticFrictionCoefficientFe = 0.36                   #Kinetic friction coefficient of Mild Steel on Copper, probably not exact
+const staticFrictionCoefficientFe = 0.53                    #Static friction coefficient of copper on Steel, probably not exact
+const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity of air at 20C
 
 magnetization = domainMagnetization
 #Projectile Specifications
+#Physical
 projrad = 3.5mm |> m
 projlength = 1.0inch |> m
-magdomiansize = 26.5μm |> m   #From literature, it is actually 26.5 nm, this value is not being used because I would have no memory left.
-magstrngth = 1T
-saturationMagnetization = saturationMagnetizationPerKgFe * magdomiansize^3 * densityFe
 position = projlength
-velocity = -0.5m/s
+velocity = -0.1m/s
 accel = 0m/s^2
+#Magnetic
+saturationMagnetization = 1.61e6A/m
 reversibility = 0.373
+const domainPinningFactor = 742.64A/m           #This is the domain pinning factor from Ref.[5]
+const α = 1.34e-3                               #Interdomain Coupling Factor from Ref.[5]
+const a = 882.55A/m                             #"Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
+const magMomentPerDomain = k*roomTemp/(a * μ0)  #This dipole magnetic moment from Ref.[5]
+
 
 #Barrel Specifications
 bthickness = 1mm |> m #Barrel thickness
@@ -70,18 +75,16 @@ t = 2s
 Magirr = 0A/m
 totalΩ = resistor + resistance(coil)
 I = CoilGun.current(ip, coil, totalΩ, volts, t, magnetization, velocity, position)
-B = simpleBField(coil, I, position)
-∇B = bFieldGradient(coil, I, position)
+B = bFieldCoil(coil, I, position)
+∇B = ∇BFieldCoil(coil, I, position)
 Magirr = Mag_irr(ip, B, Magirr, magnetization)
 dH = ∂HField(coil, I, volts, totalΩ,∇B, magnetization, position, velocity, accel, t) 
-∂Mag_irr_∂H(ip, δ(dH), δM(ip, B, Magirr, dH), ℒ(ip, B, Magirr), Magirr)
-# (∇B * ip.velocity + simpleBField(coil, I - prevI, ip.position)/t) * t / μ0
 magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
 
 ∂current = ∂Current(coil, t, volts, totalΩ, position, velocity, acceleration(totalForce(ip, ∇B, velocity, magnetization), mass(ip)), magnetization)
-∂SimpleBField_∂Current(coil, I, position)
+∂BField_∂Current(coil, I, position)
 
-endTime = 2.0s
+endTime = 0.5s
 
 scenario = Scenario(
     ip,
@@ -97,4 +100,4 @@ scenario = Scenario(
 )
 sln = solveScenario(scenario)
 
-plot(sln, vars=(0,2))
+plot(sln, vars=(0,2))  #Velocity
