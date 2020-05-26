@@ -25,7 +25,6 @@ const kineticFrictionCoefficientFe = 0.36                   #Kinetic friction co
 const staticFrictionCoefficientFe = 0.53                    #Static friction coefficient of copper on Steel, probably not exact
 const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity of air at 20C
 
-magnetization = domainMagnetization
 #Projectile Specifications
 #Physical
 projrad = 3.5mm |> m
@@ -33,6 +32,7 @@ projlength = 1.0inch |> m
 position = projlength/2
 velocity = -0.1m/s
 accel = 0m/s^2
+magnetization = 0A/m
 #Magnetic
 saturationMagnetization = 1.61e6A/m
 reversibility = 0.373
@@ -67,18 +67,20 @@ mag     = ProjectileMagnetic(domainSizeFe,
                             reversibility)
 ip      = IronProjectile(phys,mag)
 bar     = Barrel(ip.physical.radius,bthickness,blength)
-coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
+coils = Coil(1, projrad, projrad+cthickness, ip.physical.length, wirerad)
 
 
 Δt=0.1s
 t = 2s
 Magirr = 0A/m
+coil = coils[1]
 totalΩ = resistor + resistance(coil)
-I = CoilGun.current(ip, coil, totalΩ, volts, t, magnetization, velocity, position)
+Curr = map(coil -> CoilGun.current(coil, totalΩ, volts, t, magnetization, velocity, position), coils)
+I = Curr[1]
 B = bFieldCoil(coil, I, position)
 ∇B = ∇BFieldCoil(coil, I, position)
 Magirr = Mag_irr(ip, B, Magirr, magnetization)
-dH = ∂HField(coil, I, volts, totalΩ,∇B, magnetization, position, velocity, accel, t) 
+dH = ∂HField(coils, Curr, volts, totalΩ,∇B, magnetization, position, velocity, accel, t) 
 magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
 
 ∂current = ∂Current(coil, t, volts, totalΩ, position, velocity, acceleration(totalForce(ip, ∇B, velocity, magnetization), mass(ip)), magnetization)
@@ -89,7 +91,7 @@ endTime = 0.2s
 scenario = Scenario(
     ip,
     bar,
-    coil,
+    coils,
     endTime,
     volts,
     resistor,

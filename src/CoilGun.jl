@@ -11,9 +11,10 @@ module CreatedUnits
     @unit A_ms "A/m/s" HFieldRate 1A/(m*s)      true
 end
 
-using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
+using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn, 𝐈
 using Unitful: Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Velocity, Time, Acceleration
 using ForwardDiff
+using Unitful
 using DifferentialEquations
 
 
@@ -73,9 +74,14 @@ struct Barrel
 end
 struct Coil
     innerRadius::Length
-    outerRadius::Length   #This governs how many layers of wires will be on the coil
+    outerRadius::Length     #This governs how many layers of wires will be on the coil
     length::Length
-    wireRadius::Length   #This includes the insulation layer
+    wireRadius::Length      #This includes the insulation layer
+    location::Length        #Global position of the coil
+    coilOnRange::Length   #section of barrel were coil is on
+end
+function Coil(numberOfCoils::Int, innerRadius::Length, outerRadius::Length, coilLength::Length, wireRadius::Length)
+    return[Coil(innerRadius, outerRadius, coilLength, wireRadius, x*coilLength , coilLength) for x in 1:numberOfCoils]
 end
 
 #Below are functions associated with the projectile used
@@ -105,11 +111,12 @@ function selfInductance(coil::Coil)::Inductance
     oR = coil.outerRadius
     length = coil.length
     B_I = 4*pi*μ0*totalNumberWindings(coil)/(9*length^2*(oR-iR)^2)
-    var = ((oR^2+length^2)^(3/2)+(iR^2+length^2)^(3/2)-(oR^3+iR^3))*(oR^2-iR^2)|> m^5
+    var = ((oR^2+length^2)^(3/2)-(iR^2+length^2)^(3/2)-(oR^3-iR^3))*(oR^2-iR^2)|> m^5
     return B_I*var
 end
-function projectileInducedVoltage(proj::Projectile, coil::Coil, magnetization::HField, velocity::Velocity, position::Length)::Voltage #Fix
+function projectileInducedVoltage(coil::Coil, magnetization::HField, velocity::Velocity, position::Length)::Voltage #Fix
     radius = meanMagneticRadius(coil)
+    position = coil.location - position
     simpleArea = pi * radius^2
     ∂AreaRatio_∂t = radius * velocity * position/(position^2 + radius^2)^(3/2)
     constant = μ0 * magnetization * totalNumberWindings(coil) * simpleArea
@@ -123,37 +130,52 @@ function ∂projectileInducedVoltage(coil::Coil, position::Length, velocity::Vel
     constant = μ0 * magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂∂AreaRatio_∂tt |> V/s
 end
-function coilCurrent(time::Time, voltage::Voltage, characteristicTime::Time, couplingRelation::Number, resistance::ElectricalResistance, on::Bool)::Current
-    switchOffTime = switchOnTime = 0s
+function coilCurrent(time, voltage, characteristicTime, couplingRelation, resistance, on::Bool)
+    time = time |>ustrip
+    characteristicTime = characteristicTime |>ustrip
+    switchOffTime = switchOnTime = 0
     if on
         t = time - switchOnTime
         switchOffTime = time
-        return voltage * (1-exp(-time / characteristicTime) * couplingRelation) / resistance
+        return voltage * (1-exp(-t / characteristicTime) * couplingRelation) / resistance
     else
         t = time - switchOffTime
-        switchOnTime = t
-        return voltage * exp(-time / characteristicTime) * couplingRelation / resistance
+        switchOnTime = time
+        return voltage * exp(-t / characteristicTime) * couplingRelation / resistance
     end
 end
-function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, voltage::Voltage, time::Time, magnetization::HField, velocity::Velocity, position::Length)::Current
+function couplingFactor(coil::Coil)::Float64
+    #This function calculates the ratio of magnetic field lines passing through the generating coil, and an adjacent coil.
+    a = coil.length/2
+    α1 = 4 * a
+    β1 = 2 * a
+    β2 = 0m
+    block(var::Length) = (coil.outerRadius^2 + var^2)^(3/2) - (coil.innerRadius^2 + var^2)^(3/2)
+    numerator = block(α1) - 2*block(β1) + block(β2)
+    denominator = 2 * (block(β1)-block(β2))
+    return numerator/denominator
+end
+function current(coil::Coil, totalΩ::ElectricalResistance, voltage::Voltage, time::Time, magnetization::HField, velocity::Velocity, position::Length)::Current
     #This function calculates the current that is traveling through a coil. This is not taking operational amplifiers into consideration.
     arbitraryCurrent = 1A
-    couplingFactor = bFieldCoil(coil, arbitraryCurrent, coil.length)/bFieldCoil(coil, arbitraryCurrent, 0m)
-    constant = (1 - sqrt(1 - 4 * couplingFactor^2)) / (2 * couplingFactor^2)
+    𝓀 = couplingFactor(coil)
+    constant = (1 - sqrt(1 - 4 * 𝓀^2)) / (2 * 𝓀^2)
     couplingRelation = exp(constant)/(1+constant*(constant-1))
     τ = selfInductance(coil)/totalΩ #Characteristic Time (When the current reaches 1-1/e of it's steady state value (5*τ))
-    coilCurr(time::Time)::Current = coilCurrent(time,voltage,τ,couplingRelation,totalΩ)
-    projectileInducedCurrent = projectileInducedVoltage(proj, coil, magnetization, velocity, position)/totalΩ
+    on = coil.location - position < coil.coilOnRange && coil.location - position > 0m
+    coilCurr(time::Time)::Current = coilCurrent(time,voltage,τ,couplingRelation,totalΩ, on)
+    projectileInducedCurrent = projectileInducedVoltage(coil, magnetization, velocity, position)/totalΩ
     return coilCurr(time) + projectileInducedCurrent
 end
 function ∂Current(coil::Coil, time::Time, voltage::Voltage, totalΩ::ElectricalResistance, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)
     #This function describes how the current through the coil changes with the change in time.
     arbitraryCurrent = 1A
-    couplingFactor = bFieldCoil(coil, arbitraryCurrent, coil.length)/bFieldCoil(coil, arbitraryCurrent, 0m)
-    constant = (1 - sqrt(1 - 4 * couplingFactor^2)) / (2 * couplingFactor^2)
+    𝓀 = couplingFactor(coil)
+    constant = (1 - sqrt(1 - 4 * 𝓀^2)) / (2 * 𝓀^2)
     couplingRelation = exp(constant)/(1+constant*(constant-1))
     τ = selfInductance(coil)/totalΩ |> s |> ustrip#Characteristic Time (When the current reaches 1-1/e of it's steady state value (5*τ))
-    coilCurr(time) = coilCurrent(time,voltage |> V |> ustrip,τ,couplingRelation,totalΩ|> Ω |> ustrip)
+    on = coil.location - position < coil.coilOnRange && coil.location - position > 0m
+    coilCurr(time) = coilCurrent(time,voltage |> V |> ustrip,τ,couplingRelation,totalΩ|> Ω |> ustrip, on)
     return ForwardDiff.derivative(coilCurr, time|>s |>ustrip)*1A/s + ∂projectileInducedVoltage(coil,position,velocity,acceleration,magnetization)/totalΩ
 end
 
@@ -191,7 +213,7 @@ function simpleBField(coil::Coil, current::Current, position::Length)::BField
     effectiveRadius = meanMagneticRadius(coil)
     constant = μ0*totalNumberWindings(coil)*(current)/2
     mag(z) = effectiveRadius^2/(effectiveRadius^2 + z^2)^(3/2)
-    return constant*mag(position)|> T
+    return constant*mag(coil.location - position)|> T
 end
 function simpleBField(coil::Coil, current::Current, coilPosition::Length, globalPosition::Length)::BField
     return simpleBField(coil, current, coilPosition-globalPosition)
@@ -218,7 +240,7 @@ function bFieldCoil(coil::Coil, current::Current, position::Length)::BField
     length = coil.length
     crossSectionalArea = (outerRad - innerRad)*length
     constant = μ0/(crossSectionalArea*(outerRad - innerRad))
-    α = position + length/2
+    α = coil.location - position + length/2
     B = α - length
     variable(a::Length) = a*(sqrt(a^2+outerRad^2)-sqrt(a^2 + innerRad^2))
     return constant*current*totalNumberWindings(coil)*(variable(α)-variable(B)) |> T
@@ -230,8 +252,8 @@ function ∇BFieldCoil(coil::Coil, current::Current, position::Length)::CreatedU
     length = coil.length
     crossSectionalArea = (outerRad - innerRad)*length
     constant = (μ0/(crossSectionalArea*(outerRad - innerRad)))
-    α = position + length/2
-    B = position - length/2
+    α = coil.location - position + length/2
+    B = α - length
     variable(a) = a*(sqrt(a^2+(outerRad|>ustrip)^2)-sqrt(a^2 + (innerRad|>ustrip)^2))
     ∇variable(a::Length)::Length = ForwardDiff.derivative(variable, a|>ustrip)*1m
     return constant*current*totalNumberWindings(coil)*(∇variable(α)-∇variable(B)) |> T/m
@@ -270,9 +292,9 @@ function ∂ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
     langevin(x) = coth(x/a) - a/x
     return abs(effectiveBField/a) > 0.01 ? ForwardDiff.derivative(langevin,effectiveBField) : ∂taylorApproxℒ
 end
-function ∂HField(coil::Coil, current::Current, voltage::Voltage, totalΩ::ElectricalResistance,∇B::CreatedUnits.BFieldGrad, magnetization::HField, position::Length, velocity::Velocity, acceleration::Acceleration, time::Time)::CreatedUnits.HFieldRate
+function ∂HField(coils::Array{Coil,1}, current, voltage::Voltage, totalΩ::ElectricalResistance,∇B::CreatedUnits.BFieldGrad, magnetization::HField, position::Length, velocity::Velocity, acceleration::Acceleration, time::Time)::CreatedUnits.HFieldRate
     #This function calculates the change in the HField due to the change in position and the change in current
-    return (∇B*velocity+∂BField_∂Current(coil,current,position)*∂Current(coil,time,voltage,totalΩ,position,velocity,acceleration,magnetization))/μ0|>A/m/s
+    return (∇B*velocity+sum(map(i -> ∂BField_∂Current(coils[i],current[i],position)*∂Current(coils[i],time,voltage,totalΩ,position,velocity,acceleration,magnetization), 1:length(current))))/μ0|>A/m/s
 end
 function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::HField, ∂H::CreatedUnits.HFieldRate)::Float64
     #Change in the objects magnetization due to an external B-Field.

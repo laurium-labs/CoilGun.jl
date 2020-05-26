@@ -3,7 +3,7 @@ using DifferentialEquations
 struct Scenario
     proj::Projectile
     barrel::Barrel
-    coil::Coil
+    coils::Array{Coil,1}
     endTime::Time
     voltage::Voltage
     resistor::ElectricalResistance
@@ -24,16 +24,16 @@ function coilProblem!(du,u,scenario,time )
     ∂MagIrr_∂t = view(du,4 )
     t = (time)s
 
-    totalΩ = scenario.resistor + resistance(scenario.coil)
-    I = current(scenario.proj, scenario.coil, totalΩ, scenario.voltage, t, magnetization, velocity, position)
+    totalΩ = scenario.resistor + resistance(scenario.coils[1])
+    I = map(coil -> current(coil, totalΩ, scenario.voltage, t, magnetization, velocity, position), scenario.coils)
 
-    B = simpleBField(scenario.coil, I, position)
-    ∇B = bFieldGradient(scenario.coil, I, position)
+    B = sum(map(i -> bFieldCoil(scenario.coils[i], I[i], position), 1:length(I)))
+    ∇B = sum(map(i -> ∇BFieldCoil(scenario.coils[i], I[i], position), 1:length(I)))
     force = totalForce(scenario.proj, ∇B, velocity[1], magnetization[1])
     accel = (force/mass(scenario.proj)) |> m/(s^2)
     acceleration[1] = (accel) |> ustrip
     ∂Position_∂t[1] = velocity |> m/s |> ustrip
-    dH = ∂HField(scenario.coil, I, scenario.voltage, totalΩ,∇B, magnetization, position, velocity, accel, t) 
+    dH = ∂HField(scenario.coils, I, scenario.voltage, totalΩ,∇B, magnetization, position, velocity, accel, t) 
     ∂Mag_∂t[1] = ∂Magnetization_∂HField(scenario.proj, B, magIrr, dH) * dH |> A/(m*s) |> ustrip
     ∂MagIrr_∂t[1] = ∂Mag_irr_∂He(scenario.proj,δ(dH), δM(scenario.proj, B, magIrr, dH), ℒ(scenario.proj, B, magIrr), magIrr) * dH |> A/(m*s) |> ustrip
     nothing
