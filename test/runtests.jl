@@ -30,7 +30,7 @@ magnetization = domainMagnetization
 #Physical
 projrad = 3.5mm |> m
 projlength = 1.0inch |> m
-position = projlength
+position = projlength/2
 velocity = -0.1m/s
 accel = 0m/s^2
 #Magnetic
@@ -84,7 +84,7 @@ magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
 ∂current = ∂Current(coil, t, volts, totalΩ, position, velocity, acceleration(totalForce(ip, ∇B, velocity, magnetization), mass(ip)), magnetization)
 ∂BField_∂Current(coil, I, position)
 
-endTime = 0.5s
+endTime = 0.2s
 
 scenario = Scenario(
     ip,
@@ -100,4 +100,8 @@ scenario = Scenario(
 )
 sln = solveScenario(scenario)
 
-plot(sln, vars=(0,2))  #Velocity
+p1 = plot(sln, vars=(0,2), title = "Position")
+p2 = plot(sln, vars=(0,3), title  = "Velocity")
+p3 = plot(sln, vars=(0,1), title  = "Magnetization")
+p4 = plot(sln, vars=(0,4), title  = "Irriversible Magnetization")
+plot(p1,p2,p3,p4)

@@ -108,7 +108,7 @@ function selfInductance(coil::Coil)::Inductance
     var = ((oR^2+length^2)^(3/2)+(iR^2+length^2)^(3/2)-(oR^3+iR^3))*(oR^2-iR^2)|> m^5
     return B_I*var
 end
-function projectileInducedVoltage(proj::Projectile, coil::Coil, magnetization::HField, velocity::Velocity, position::Length)::Voltage
+function projectileInducedVoltage(proj::Projectile, coil::Coil, magnetization::HField, velocity::Velocity, position::Length)::Voltage #Fix
     radius = meanMagneticRadius(coil)
     simpleArea = pi * radius^2
     ∂AreaRatio_∂t = radius * velocity * position/(position^2 + radius^2)^(3/2)
@@ -123,8 +123,17 @@ function ∂projectileInducedVoltage(coil::Coil, position::Length, velocity::Vel
     constant = μ0 * magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂∂AreaRatio_∂tt |> V/s
 end
-function coilCurrent(time, voltage, characteristicTime, couplingRelation, resistance)
-    return voltage * (1-exp(-time / characteristicTime) * couplingRelation) / resistance
+function coilCurrent(time::Time, voltage::Voltage, characteristicTime::Time, couplingRelation::Number, resistance::ElectricalResistance, on::Bool)::Current
+    switchOffTime = switchOnTime = 0s
+    if on
+        t = time - switchOnTime
+        switchOffTime = time
+        return voltage * (1-exp(-time / characteristicTime) * couplingRelation) / resistance
+    else
+        t = time - switchOffTime
+        switchOnTime = t
+        return voltage * exp(-time / characteristicTime) * couplingRelation / resistance
+    end
 end
 function current(proj::Projectile, coil::Coil, totalΩ::ElectricalResistance, voltage::Voltage, time::Time, magnetization::HField, velocity::Velocity, position::Length)::Current
     #This function calculates the current that is traveling through a coil. This is not taking operational amplifiers into consideration.
@@ -229,16 +238,19 @@ function ∇BFieldCoil(coil::Coil, current::Current, position::Length)::CreatedU
 end
 
 #The paper referenced for these following equations relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
-δ(inc::CreatedUnits.HFieldRate)::Int = inc/sqrt(inc^2)
+function δ(inc::CreatedUnits.HFieldRate)::Int
+    return inc >= 0A/m/s ? 1 : -1
+end
 function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::CreatedUnits.HFieldRate)::Int
     #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the and the anhysteris magnetization is the reversible magnetization. This function should take the values of 1 or 0.
     Mrev = proj.magnetic.saturationMagnetization * ℒ(proj, bField, Mag_irr) - Mag_irr
-    dummyVar = Mrev/inc
+    dummyVar = abs(Mrev) < 1e-6A/m ? 1 : Mrev/δ(inc)
     return round((1 + dummyVar/sqrt(dummyVar^2))/2)
 end
 function Mag_irr(proj::Projectile, bField::BField, Mag_irr::HField, magnetization::HField)::HField
     #This calculates the bulk irriversible magnetization inside the projectile.
-    (magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr)*proj.magnetic.saturationMagnetization)/(1-proj.magnetic.reversibility)
+    val = (magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr)*proj.magnetic.saturationMagnetization)/(1-proj.magnetic.reversibility)
+    return (magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr)*proj.magnetic.saturationMagnetization)/(1-proj.magnetic.reversibility)
 end
 function ∂Mag_irr_∂He(proj::Projectile, delta::Int, deltaM::Int, langevin::Float64, Mag_irr::HField)::Float64
     return deltaM*(proj.magnetic.saturationMagnetization * langevin - Mag_irr)/(domainPinningFactor*delta)
@@ -286,12 +298,13 @@ function dipoleCoilForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad, m
 end
 function frictionForce(proj::Projectile, velocity::Velocity, dipoleCoilForce::Force)::Force
     #This describes the resistive force due to friction (both static and kinetic). I know very little about the relationship between kinetic friction and velocity, but I highly doubt it's a constant relationship. More research will have to be done.
-    frictionCoefficient = abs(velocity) > 0m/s ? kineticFrictionCoefficientFe : staticFrictionCoefficientFe
+    frictionCoefficient = abs(velocity) > 1e-5m/s ? kineticFrictionCoefficientFe : staticFrictionCoefficientFe
     normalForce = mass(proj) * gn
+    signCorrection = velocity == 0 ? 1 : -sign(velocity)
     if abs(normalForce) >= abs(dipoleCoilForce) && velocity == 0m/s
         return -dipoleCoilForce
     else
-        return frictionCoefficient * normalForce * -round(dipoleCoilForce/abs(dipoleCoilForce))
+        return frictionCoefficient * normalForce * signCorrection
     end
 end
 function airResistance(proj::Projectile, velocity::Velocity)::Force
