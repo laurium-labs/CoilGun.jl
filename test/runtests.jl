@@ -29,8 +29,8 @@ const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity o
 #Physical
 projrad = 3.5mm |> m
 projlength = 1.0inch |> m
-position = projlength/2
-velocity = -0.1m/s
+position = 0m
+velocity = 0.1m/s
 accel = 0m/s^2
 magnetization = 0A/m
 #Magnetic
@@ -40,6 +40,10 @@ const domainPinningFactor = 742.64A/m           #This is the domain pinning fact
 const α = 1.34e-3                               #Interdomain Coupling Factor from Ref.[5]
 const a = 882.55A/m                             #"Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
 const magMomentPerDomain = k*roomTemp/(a * μ0)  #This dipole magnetic moment from Ref.[5]
+println("Initial Parameters:\n\tposition:\t\t",position,
+    "\n\tvelocity:\t\t", velocity,
+    "\n\tacceleration:\t\t", accel, 
+    "\n\tmagnetization:\t\t", magnetization)
 
 
 #Barrel Specifications
@@ -67,7 +71,7 @@ mag     = ProjectileMagnetic(domainSizeFe,
                             reversibility)
 ip      = IronProjectile(phys,mag)
 bar     = Barrel(ip.physical.radius,bthickness,blength)
-coils = Coil(1, projrad, projrad+cthickness, ip.physical.length, wirerad)
+coils = Coil(10, projrad, projrad+cthickness, ip.physical.length, wirerad)
 
 
 Δt=0.1s
@@ -101,9 +105,9 @@ scenario = Scenario(
     magnetization
 )
 sln = solveScenario(scenario)
-
-p1 = plot(sln, vars=(0,2), title = "Position")
-p2 = plot(sln, vars=(0,3), title  = "Velocity")
-p3 = plot(sln, vars=(0,1), title  = "Magnetization")
-p4 = plot(sln, vars=(0,4), title  = "Irriversible Magnetization")
-plot(p1,p2,p3,p4)
+println("Length of Velocity:\t\t",length(sln[4,:]),"\nLength of Position:\t\t", length(sln[3,:]),"\nLength of Time:\t\t\t", length(sln[2,:]),"\nLength of Magnetization:\t", length(sln[1,:]))
+# p1 = plot(sln, vars=(0,2), title  = "Position")
+# p2 = plot(sln, vars=(0,3), title  = "Velocity")
+# p3 = plot(sln, vars=(0,1), title  = "Magnetization")
+# p4 = plot(sln, vars=(0,4), title  = "Irriversible Magnetization")
+plot(sln, layout = (2,2))
