@@ -24,7 +24,6 @@ const saturationMagnetizationPerKgFe = 217.6A/(m*kg)             #Saturation mag
 const kineticFrictionCoefficientFe = 0.36                   #Kinetic friction coefficient of Mild Steel on Copper, probably not exact
 const staticFrictionCoefficientFe = 0.53                    #Static friction coefficient of copper on Steel, probably not exact
 const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity of air at 20C
-
 #Projectile Specifications
 #Physical
 projrad = 3.5mm |> m
@@ -33,6 +32,7 @@ position = 0m
 velocity = 0.1m/s
 accel = 0m/s^2
 magnetization = 0A/m
+magIrr = 0A/m
 #Magnetic
 saturationMagnetization = 1.61e6A/m
 reversibility = 0.373
@@ -53,14 +53,14 @@ blength = 0.5m |> m #Length of barrel
 
 #Coil Specifications
 innerRadius = projrad+bthickness        #The Inner diameter of the Coil needs to be the Outer diameter of the barrel
-cthickness = 1inch |> m                 #The difference in the Inner diameter and Outer diameter of the Coil
-coilLen = projlength                    #The length of the Coil should be the exact length of the projectile
+cthickness = 2inch |> m                 #The difference in the Inner diameter and Outer diameter of the Coil
+coilLen = 1.0inch                    #The length of the Coil should be the exact length of the projectile
 coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter of the Coil
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
 I = 1A                                  #Current flowing through the wire
-stepSize = 1_000
 resistor = 10Ω
-volts = 15V
+volts = 150V
+numberOfCoils = 48
 
 phys    = ProjectilePhysical(projrad,
                             projlength,
@@ -71,43 +71,49 @@ mag     = ProjectileMagnetic(domainSizeFe,
                             reversibility)
 ip      = IronProjectile(phys,mag)
 bar     = Barrel(ip.physical.radius,bthickness,blength)
-coils = Coil(10, projrad, projrad+cthickness, ip.physical.length, wirerad)
+coils = Coil(numberOfCoils, projrad, projrad+cthickness, ip.physical.length, wirerad)
+PCE = ProjectileCoilEvent()
+PCE.entersActiveZone = [nothing for _ in coils]
+PCE.exitsActiveZone = [nothing for _ in coils]
 
 
-Δt=0.1s
-t = 2s
-Magirr = 0A/m
-coil = coils[1]
-totalΩ = resistor + resistance(coil)
-Curr = map(coil -> CoilGun.current(coil, totalΩ, volts, t, magnetization, velocity, position), coils)
-I = Curr[1]
-B = bFieldCoil(coil, I, position)
-∇B = ∇BFieldCoil(coil, I, position)
-Magirr = Mag_irr(ip, B, Magirr, magnetization)
-dH = ∂HField(coils, Curr, volts, totalΩ,∇B, magnetization, position, velocity, accel, t) 
-magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
+# Δt=0.1s
+# t = 0s
+# Magirr = 0A/m
+# coil = coils[1]
+# totalΩ = resistor + resistance(coil)
+# Curr = map(i ->CoilGun.current(coils[i], totalΩ, volts, t - eventTimes[1].entersActiveZone, magnetization, velocity, position), 1:length(coils))
+# I = Curr[1]
+# B = bFieldCoil(coil, I, position)
+# ∇B = ∇BFieldCoil(coil, I, position)
+# Magirr = Mag_irr(ip, B, Magirr, magnetization)
+# dH = ∂HField(coils, volts, totalΩ,∇B, magnetization, position, velocity, accel, t) 
+# magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
 
-∂current = ∂Current(coil, t, volts, totalΩ, position, velocity, acceleration(totalForce(ip, ∇B, velocity, magnetization), mass(ip)), magnetization)
-∂BField_∂Current(coil, I, position)
+# ∂current = ∂Current(coil, t, volts, totalΩ, position, velocity, acceleration(totalForce(ip, ∇B, velocity, magnetization), mass(ip)), magnetization)
+# ∂BField_∂Current(coil, position)
 
-endTime = 0.2s
+endTime = 0.6s
 
 scenario = Scenario(
     ip,
     bar,
     coils,
+    PCE,
     endTime,
     volts,
     resistor,
-    Magirr,
+    magIrr,
     position,
     velocity,
     magnetization
 )
+println("Now Solving...")
 sln = solveScenario(scenario)
 println("Length of Velocity:\t\t",length(sln[4,:]),"\nLength of Position:\t\t", length(sln[3,:]),"\nLength of Time:\t\t\t", length(sln[2,:]),"\nLength of Magnetization:\t", length(sln[1,:]))
 # p1 = plot(sln, vars=(0,2), title  = "Position")
 # p2 = plot(sln, vars=(0,3), title  = "Velocity")
 # p3 = plot(sln, vars=(0,1), title  = "Magnetization")
 # p4 = plot(sln, vars=(0,4), title  = "Irriversible Magnetization")
+println("Max Velocity $(sln[3,:][argmax(sln[3,:])])")
 plot(sln, layout = (2,2))

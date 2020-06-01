@@ -1,11 +1,12 @@
 # CoilGun.jl
 
+## Background Theory ##
 ## Overview ##
 This program models the behavior of a ferromagnetic projectile under the influence of magnetic induction. This device, known as a Gauss Cannon (or Coil Gun), uses a series of solenoids to accelerate a projectile by sequentially turning solenoids on and off. With the aid of Julia and its packages, all known phenomena involved with magnetizing and accelerating a ferromagnetic projectile can be be calculated and simulated.
 
 The device itself can be used for a number of different applications. Some notable applications are: general construction, clearing computer memory, material testing, scientific demonstrations, etc, etc. The goal of this project is to accelerate the projectile to mach 1.
 
-
+## Considerations (Accuracy of Simulation) ##
 This code takes into consideration the following effects:
 - Friction
 - Air Resistance
@@ -36,7 +37,10 @@ It's not taking into consideration:
  
 
 *All assumptions made will gradually be made to fit closer with reality. The complexity of the system will increase until either the simulation provieds accurate resutls and matches reality (error < 1%), or until computation time is unreasonably long (like taking 10 minutes to complete the simulation).
-
+## Construction of the Coil Gun ##
+## Results ##
+## Discussion ##
+## Applications ##
 #### Sources: ####
 
 [1] Jiles, D. C., & Atherton, D. L. (1986). Theory of ferromagnetic hysteresis. Journal of magnetism and magnetic materials, 61(1-2), 48-60.
