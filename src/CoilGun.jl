@@ -3,7 +3,7 @@ module CoilGun
 module CreatedUnits
     using Unitful
     using Unitful: 𝐈, 𝐌, 𝐓, 𝐋 , T, m, A, s
-    @derived_dimension BFieldGrad 𝐈^-1*𝐌*𝐓^-2*𝐋^-1
+    @derived_dimension HFieldGrad 𝐈*𝐋^-2
     @derived_dimension Permeability 𝐈/𝐋^2
     @derived_dimension HFieldRate 𝐈*𝐋^-1*𝐓^-1
 
@@ -118,26 +118,26 @@ function selfInductance(coil::Coil)::Inductance
     iR = coil.innerRadius
     oR = coil.outerRadius
     length = coil.length
-    B_I = 4*pi*μ0*totalNumberWindings(coil)/(9*length^2*(oR-iR)^2)
-    var = ((oR^2+length^2)^(3/2)-(iR^2+length^2)^(3/2)-(oR^3-iR^3))*(oR^2-iR^2)|> m^5
+    B_I = pi*μ0*totalNumberWindings(coil)/(3*length*coilCrossSectionalArea(coil))
+    var = ((oR^2+length^2)^(3/2)+(iR^2+length^2)^(3/2)-(oR^3-iR^3))*(oR^2-iR^2)|> m^5
     return B_I*var
 end
-function projectileInducedVoltage(coil::Coil, magnetization::HField, velocity::Velocity, position::Length)::Voltage #Fix
-    radius = meanMagneticRadius(coil)
+function projectileInducedVoltage(coil::Coil, magnetization::HField, velocity::Velocity, position::Length)::Voltage #Update:Includes face of coil, not depth
     position = position - coil.location
-    simpleArea = pi * radius^2
-    ∂AreaRatio_∂t = radius * velocity * position/(position^2 + radius^2)^(3/2)
-    constant = μ0 * magnetization * totalNumberWindings(coil) * simpleArea
+    area = pi * (coil.outerRadius^2 - coil.innerRadius^2)
+    effectiveRadius = area/(coil.outerRadius - coil.innerRadius)
+    ∂AreaRatio_∂t = effectiveRadius * velocity * position/(position^2 + effectiveRadius^2)^(3/2)
+    constant = μ0 * magnetization * totalNumberWindings(coil) * area #includes #of windings because the BField is traveling through the windings.
     return constant * ∂AreaRatio_∂t
 end
-function ∂projectileInducedVoltage(coil::Coil, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)
+function ∂projectileInducedVoltage(coil::Coil, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)#Update:Includes face of coil, not depth
     #This funciton describes the change in the induced voltage per change in time
     position = position - coil.location
-    radius = meanMagneticRadius(coil)
-    simpleArea = pi * radius^2
-    ∂∂AreaRatio_∂tt = radius * (position*acceleration/(position^2+radius^2)^(3/2) + radius^2*velocity^2/(position^2+radius^2)^(5/2)) |> s^-2
-    constant = μ0 * magnetization * totalNumberWindings(coil) * simpleArea
-    return constant * ∂∂AreaRatio_∂tt |> V/s
+    area = pi * (coil.outerRadius^2 - coil.innerRadius^2)
+    effectiveRadius = area/(coil.outerRadius - coil.innerRadius)
+    ∂∂AreaRatio_∂tt = effectiveRadius * (position*acceleration/(position^2+effectiveRadius^2)^(3/2) + effectiveRadius^2*velocity^2/(position^2+effectiveRadius^2)^(5/2)) |> s^-2
+    constant = μ0 * magnetization * totalNumberWindings(coil) * area
+    return constant * ∂∂AreaRatio_∂tt |> V/area
 end
 function couplingFactor(coil::Coil)::Float64 #May need to be changed. There's another equation with number of turns
     #This function calculates the ratio of magnetic field lines passing through the generating coil, and an adjacent coil.
@@ -253,15 +253,15 @@ end
 #     ∇variable(a::Length)::Length = -ForwardDiff.derivative(variable, a|>ustrip)m
 #     return constant*current*totalNumberWindings(coil)*(∇variable(farEdgeofCoil)-∇variable(closeEdgeofCoil)) |> T/m
 # end
-function bFieldCoil(coil::Coil, current::Current, position::Length)::BField
-    constant = μ0*current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
+function bFieldCoil(coil::Coil, current::Current, position::Length)::HField
+    constant = current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
     logarithm(pos::Length)::Length = pos * log((sqrt(pos^2+coil.outerRadius^2)+coil.outerRadius)/(sqrt(pos^2+coil.innerRadius^2)+coil.innerRadius))
     farEdgeofCoil = coil.location - position + coil.length/2
     closeEdgeofCoil = farEdgeofCoil - coil.length
     return constant * (logarithm(farEdgeofCoil) - logarithm(closeEdgeofCoil))
 end
-function ∇BFieldCoil(coil::Coil, current::Current, position::Length)::CreatedUnits.BFieldGrad
-    constant = μ0*current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
+function ∇BFieldCoil(coil::Coil, current::Current, position::Length)::CreatedUnits.HFieldGrad
+    constant = current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
     outerRadius = coil.outerRadius |> m |>ustrip
     innerRadius = coil.innerRadius |>m |> ustrip
     logarithm(pos) = pos * log((sqrt(pos^2+outerRadius^2)+outerRadius)/(sqrt(pos^2+innerRadius^2)+innerRadius))
