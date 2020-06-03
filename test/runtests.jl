@@ -34,10 +34,10 @@ accel = 0m/s^2
 #Magnetic
 saturationMagnetization = 1.61e6A/m
 reversibility = 0.373
-const domainPinningFactor = 742.64A/m           #This is the domain pinning factor from Ref.[5]
-const α = 1.34e-3                               #Interdomain Coupling Factor from Ref.[5]
-const a = 882.55A/m                            #"Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
-const magMomentPerDomain = k*roomTemp/(a * μ0)  #This dipole magnetic moment from Ref.[5]
+const domainPinningFactor = 742.64A/m           # This is the domain pinning factor from Ref.[5]
+const α = 1.34e-3                               # Interdomain Coupling Factor from Ref.[5]
+const a = 882.55A/m                             # "Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
+const magMomentPerDomain = k*roomTemp/a         # This dipole magnetic moment from Ref.[5]
 magnetization = 0A/m
 magIrr = 0A/m
 println("Initial Parameters:\n\tposition:\t\t",position,

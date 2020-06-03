@@ -42,7 +42,7 @@ const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity o
 const domainPinningFactor = 742.64A/m           #This is the domain pinning factor from Ref.[5]
 const α = 1.34e-3                               #Interdomain Coupling Factor from Ref.[5]
 const a = 882.55A/m                             #"Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
-const magMomentPerDomain = k*roomTemp/(a * μ0)  #This dipole magnetic moment from Ref.[5]
+const magMomentPerDomain = k*roomTemp/a  #This dipole magnetic moment from Ref.[5]
 
 abstract type Projectile end
 abstract type Physical end
@@ -113,12 +113,12 @@ meanMagneticRadius(coil::Coil)::Length      = 2*coil.innerRadius*coil.outerRadiu
 
 
 #Equations relating to the calculation of current
-function selfInductance(coil::Coil)::Inductance
+function selfInductance(coil::Coil)::Inductance #Fix for new coil Equation
     #This is a simplified version for the self inductance of the coil. It is not taking into consideration the thickness (different layers) of the coil, or the varying magnetic fields that pass through each loop. This is just for approximation only. When working out the math, current drops out of the equation so here it is just some random value.
     iR = coil.innerRadius
     oR = coil.outerRadius
     length = coil.length
-    B_I = pi*μ0*totalNumberWindings(coil)/(3*length*coilCrossSectionalArea(coil))
+    B_I = pi*μ0*totalNumberWindings(coil)/(3*coilCrossSectionalArea(coil)^2)
     var = ((oR^2+length^2)^(3/2)+(iR^2+length^2)^(3/2)-(oR^3-iR^3))*(oR^2-iR^2)|> m^5
     return B_I*var
 end
@@ -236,9 +236,9 @@ end
 function bFieldGradient(coil::Coil, current::Current, coilPosition::Length, globalPosition::Length)::CreatedUnits.BFieldGrad
     return bFieldGradient(coil, current, coilPosition-globalPosition)
 end
-function ∂BField_∂Current(coil::Coil, position::Length)
+function ∂HField_∂Current(coil::Coil, position::Length)
     #This function describes how the BField changes with respect to the change in current
-    return bFieldCoil(coil, 1A, position)/1A
+    return hFieldCoil(coil, 1A, position)/1A
 end
 # function ∇BFieldCoil(coil::Coil, current::Current, position::Length)::CreatedUnits.BFieldGrad
 #     # This function describs the change in the magnetic field of a coil with the change in position
@@ -253,14 +253,14 @@ end
 #     ∇variable(a::Length)::Length = -ForwardDiff.derivative(variable, a|>ustrip)m
 #     return constant*current*totalNumberWindings(coil)*(∇variable(farEdgeofCoil)-∇variable(closeEdgeofCoil)) |> T/m
 # end
-function bFieldCoil(coil::Coil, current::Current, position::Length)::HField
+function hFieldCoil(coil::Coil, current::Current, position::Length)::HField
     constant = current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
     logarithm(pos::Length)::Length = pos * log((sqrt(pos^2+coil.outerRadius^2)+coil.outerRadius)/(sqrt(pos^2+coil.innerRadius^2)+coil.innerRadius))
     farEdgeofCoil = coil.location - position + coil.length/2
     closeEdgeofCoil = farEdgeofCoil - coil.length
     return constant * (logarithm(farEdgeofCoil) - logarithm(closeEdgeofCoil))
 end
-function ∇BFieldCoil(coil::Coil, current::Current, position::Length)::CreatedUnits.HFieldGrad
+function ∇HFieldCoil(coil::Coil, current::Current, position::Length)::CreatedUnits.HFieldGrad
     constant = current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
     outerRadius = coil.outerRadius |> m |>ustrip
     innerRadius = coil.innerRadius |>m |> ustrip
@@ -275,57 +275,57 @@ end
 function δ(inc::CreatedUnits.HFieldRate)::Int
     return inc >= 0A/m/s ? 1 : -1
 end
-function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::CreatedUnits.HFieldRate)::Int
+function δM(proj::Projectile, hField::HField, Mag_irr::HField, inc::CreatedUnits.HFieldRate)::Int
     #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the and the anhysteris magnetization is the reversible magnetization. This function should take the values of 1 or 0.
-    Mrev = ℒ(proj, bField, Mag_irr) - Mag_irr
+    Mrev = ℒ(proj, hField, Mag_irr) - Mag_irr
     dummyVar = abs(Mrev) < 1e-6A/m ? 1 : Mrev/δ(inc)
     return (1 + sign(dummyVar))/2
 end
-function ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::HField
+function ℒ(proj::Projectile, hField::HField, mag_Irr::HField)::HField
     #langevin funciton that represents the anhystesis bulk magnetization for a given material. It can be imagined as a sigmoid shape on a M-H graph.
-    a = k*roomTemp/magMomentPerDomain |>T  |> ustrip               #Constant
-    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*Mag_irr |> T |> ustrip#Variable
-    taylorApproxℒ = effectiveBField/(3*a) - effectiveBField^3/(45*a^3)
-    ans = abs(effectiveBField/a) > 0.01 ? coth(effectiveBField/a) - a/effectiveBField : taylorApproxℒ
+    a = k*roomTemp/magMomentPerDomain |>A/m  |> ustrip               #Constant
+    effectiveHField = hField+proj.magnetic.interdomainCoupling*mag_Irr |> A/m |> ustrip#Variable
+    taylorApproxℒ = effectiveHField/(3*a) - effectiveHField^3/(45*a^3)
+    ans = abs(effectiveHField/a) > 0.01 ? coth(effectiveHField/a) - a/effectiveHField : taylorApproxℒ
     return ans * proj.magnetic.saturationMagnetization
 end
-function ∂ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
+function ∂ℒ(proj::Projectile, hField::HField, Mag_irr::HField)::Float64
     #The first order derivative (with respect to the BField) of the ℒ function
-    a = k*roomTemp/magMomentPerDomain |>T|>ustrip             #Constant
-    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*Mag_irr |>T|>ustrip  #Variable
-    ∂taylorApproxℒ = 1/(3*a) - effectiveBField^2/(15*a^3)
+    a = k*roomTemp/magMomentPerDomain |>A/m|>ustrip             #Constant
+    effectiveHField = hField+proj.magnetic.interdomainCoupling*Mag_irr |>A/m|>ustrip  #Variable
+    ∂taylorApproxℒ = 1/(3*a) - effectiveHField^2/(15*a^3)
     langevin(x) = coth(x/a) - a/x
-    ans = abs(effectiveBField/a) > 1e-6 ? ForwardDiff.derivative(langevin,effectiveBField)/1T : ∂taylorApproxℒ/1T
+    ans = abs(effectiveHField/a) > 1e-6 ? ForwardDiff.derivative(langevin,effectiveHField)*1m/A : ∂taylorApproxℒ*1m/A
     # println("∂ℒ :\t Mag_irr $(μ0*proj.magnetic.interdomainCoupling*Mag_irr),\tRatio: $(effectiveBField),\tans: $(ans),\ta: $(a)")
-    return ans * proj.magnetic.saturationMagnetization * μ0
+    return ans * proj.magnetic.saturationMagnetization
 end
-function mag_Irr(proj::Projectile, bField::BField, Mag_irr::HField, magnetization::HField)::HField
+function mag_Irr(proj::Projectile, hField::HField, Mag_irr::HField, magnetization::HField)::HField
     #This calculates the bulk irriversible magnetization inside the projectile.
-    return (magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr))/(1-proj.magnetic.reversibility)
+    return (magnetization - proj.magnetic.reversibility * ℒ(proj,hField,Mag_irr))/(1-proj.magnetic.reversibility)
 end
-function ∂Mag_irr_∂He(proj::Projectile, bField::BField, Mag_irr::HField, ∂H::CreatedUnits.HFieldRate)::Float64
-    return δM(proj,bField,Mag_irr,∂H)*(ℒ(proj,bField,Mag_irr) - Mag_irr)/(domainPinningFactor)
+function ∂Mag_irr_∂He(proj::Projectile, hField::HField, Mag_irr::HField, ∂H::CreatedUnits.HFieldRate)::Float64
+    return δM(proj,hField,Mag_irr,∂H)*(ℒ(proj,hField,Mag_irr) - Mag_irr)/(domainPinningFactor)
 end
-function dHField(coils::Array{Coil,1}, voltage::Voltage, totalΩ::ElectricalResistance, ∇B::CreatedUnits.BFieldGrad, position::Length, velocity::Velocity, time::Time)::CreatedUnits.HFieldRate
+function dHField(coils::Array{Coil,1}, voltage::Voltage, totalΩ::ElectricalResistance, ∇H::CreatedUnits.HFieldGrad, position::Length, velocity::Velocity, time::Time)::CreatedUnits.HFieldRate
     #This function calculates the change in the HField due to the change in position and the change in current
-    return (∇B*velocity+sum(map(coil -> ∂BField_∂Current(coil,position)*∂Current(coil,time,voltage,totalΩ,position), coils)))/μ0|>A/m/s
+    return ∇H*velocity+sum(map(coil -> ∂HField_∂Current(coil,position)*∂Current(coil,time,voltage,totalΩ,position), coils))|>A/m/s
 end
 
 #Somehow the rod is oversaturating
-function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::HField, ∂H::CreatedUnits.HFieldRate)::Float64
+function ∂Magnetization_∂HField(proj::Projectile, hField::HField, Mag_irr::HField, ∂H::CreatedUnits.HFieldRate)::Float64
     #Change in the objects magnetization due to an external B-Field.
-    ΔM_irr = ∂Mag_irr_∂He(proj, bField, Mag_irr, ∂H)
-    numerator = ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * δ(∂H)
+    ΔM_irr = ∂Mag_irr_∂He(proj, hField, Mag_irr, ∂H)
+    numerator = ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, hField, Mag_irr) * δ(∂H)
     # println("∂Magnetization_∂HField:\tδ: $(δ(∂H))")
     denominator = δ(∂H) - α * numerator
     return numerator/denominator
 end
 
 #Force Functions
-function dipoleCoilForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad, magnetization::HField)::Force #Update: Integrate mag over volume
+function dipoleCoilForce(proj::Projectile, ∇HField::CreatedUnits.HFieldGrad, magnetization::HField)::Force #Update: Integrate mag over volume
     #This force function assumes a number of things. 1) The magnetization of the projectile is constant throughout the material. This means that all of the magnetic domains are consistent throughout the material. 2) The magnetic field experienced at the center of the projectile is the average magnetic field experienced by the projectile. 3) The magnetization of the material can be approximated as a magnetic dipole (loop would be more accurate, but this is easier).
     magneticDipoleMoment = magnetization * volume(proj)
-    return magneticDipoleMoment * ∇BField|>N
+    return magneticDipoleMoment * μ0 * ∇HField|>N
 end
 function frictionForce(proj::Projectile, velocity::Velocity, dipoleCoilForce::Force)::Force #Update (check inside)
     #This describes the resistive force due to friction (both static and kinetic). I know very little about the relationship between kinetic friction and velocity, but I highly doubt it's a constant relationship. More research will have to be done.
@@ -342,8 +342,8 @@ function airResistance(proj::Projectile, velocity::Velocity)::Force #Update to m
     #This funciton is used to calculate the air resistance on the projectile. This current function is overly simplified and will need to be changed later for a more accurate function.
     return 6 * pi * dynamicViscosityAir * proj.physical.radius * velocity|>N
 end
-function totalForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad, velocity::Velocity, magnetization::HField)::Force
-    dipoleForce = dipoleCoilForce(proj,∇BField, magnetization)
+function totalForce(proj::Projectile, ∇HField::CreatedUnits.HFieldGrad, velocity::Velocity, magnetization::HField)::Force
+    dipoleForce = dipoleCoilForce(proj,∇HField, magnetization)
     frictionalForces = frictionForce(proj, velocity, dipoleForce) + airResistance(proj, velocity)
     return dipoleForce + frictionalForces |> N
 end
@@ -354,8 +354,8 @@ export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, nu
     wireLength, area, volume, resistance, magDomainVol, magneticFieldSummation, magneticFieldIntegration, 
     ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe, coilCrossSectionalArea, 
     meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ∂Magnetization_∂HField, selfInductance, 
-    projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, 
-    ∂Current, acceleration, ∂BField_∂Current, dHField, bFieldCoil, ∇BFieldCoil, ProjectileCoilEvent,
+    projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , mag_Irr, ∂projectileInducedVoltage, 
+    ∂Current, acceleration, ∂HField_∂Current, dHField, hFieldCoil, ∇HFieldCoil, ProjectileCoilEvent,
     solveScenario, Scenario
 end
 #module
