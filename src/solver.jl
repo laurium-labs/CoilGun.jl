@@ -39,11 +39,11 @@ function coilProblem!(du,u,scenario,time )
     foreach(1:length(scenario.coils)) do coilInd
         distanceFromCoil = scenario.coils[coilInd].location - position
         if distanceFromCoil <= scenario.coils[coilInd].coilOnRange && isnothing(scenario.eventTimes.entersActiveZone[coilInd])
-            println("Entered coil\t", coilInd)
+            println("\nEntered coil\t$(coilInd)\t with velocity:\t $(velocity),\t and coil efficiency of: $(velocity/coilInd)")
             scenario.eventTimes.entersActiveZone[coilInd] = t
         end
         if distanceFromCoil <= 0.0m && isnothing(scenario.eventTimes.exitsActiveZone[coilInd])
-            println("Exited coil\t", coilInd)
+            println("Exited coil\t$(coilInd)")
             scenario.eventTimes.exitsActiveZone[coilInd] = t
         end
     end
@@ -54,9 +54,9 @@ function coilProblem!(du,u,scenario,time )
     accel = (force/mass(scenario.proj)) |> m/(s^2)
     acceleration[1] = (accel) |> ustrip
     ∂Position_∂t[1] = velocity |> m/s |> ustrip
-    dH = ∂HField(scenario.coils, scenario.voltage, totalΩ,∇B, magnetization, position, velocity, accel, t)
+    dH = dHField(scenario.coils, scenario.voltage, totalΩ, ∇B, position, velocity, t)
+    ∂MagIrr_∂t[1] = ∂Mag_irr_∂He(scenario.proj,B, magIrr, dH) * dH |> A/(m*s) |> ustrip
     ∂Mag_∂t[1] = ∂Magnetization_∂HField(scenario.proj, B, magIrr, dH) * dH |> A/(m*s) |> ustrip
-    ∂MagIrr_∂t[1] = ∂Mag_irr_∂He(scenario.proj,δ(dH), δM(scenario.proj, B, magIrr, dH), ℒ(scenario.proj, B, magIrr), magIrr) * dH |> A/(m*s) |> ustrip
     nothing
 end
 

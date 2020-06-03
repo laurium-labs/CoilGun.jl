@@ -81,7 +81,7 @@ struct Coil
     coilOnRange::Length   #section of barrel were coil is on
 end
 function Coil(numberOfCoils::Int, innerRadius::Length, outerRadius::Length, coilLength::Length, wireRadius::Length)
-    return[Coil(innerRadius, outerRadius, coilLength, wireRadius, x*coilLength , coilLength) for x in 1:numberOfCoils]
+    return[Coil(innerRadius, outerRadius, coilLength, wireRadius, x*coilLength , 2*coilLength) for x in 1:numberOfCoils]
 end
 
 mutable struct ProjectileCoilEvent
@@ -139,20 +139,6 @@ function ∂projectileInducedVoltage(coil::Coil, position::Length, velocity::Vel
     constant = μ0 * magnetization * totalNumberWindings(coil) * simpleArea
     return constant * ∂∂AreaRatio_∂tt |> V/s
 end
-function coilCurrent(coil::Coil, position::Length, time::Time, maxVoltage::Voltage, characteristicTime::Time, resistance::ElectricalResistance)::Current #Fix: Turn coil off when proj. is > 2 coilOnRange away from coil
-    #The entry fields are intentionally left without specification due to its derivative being taken.
-    distFromCoil = coil.location - position
-    if (0m <= distFromCoil) && (distFromCoil <= coil.coilOnRange)
-        return maxVoltage * (1-exp(-time / characteristicTime)) / resistance
-    elseif distFromCoil <= 0m
-        return maxVoltage * (2*exp(-time / characteristicTime)-1) / resistance
-    else
-        return maxVoltage/resistance - maxVoltage/resistance
-    end
-end
-
-#TODO: Create a function that describes how a capacitor will supply voltage to a coil
-
 function couplingFactor(coil::Coil)::Float64 #May need to be changed. There's another equation with number of turns
     #This function calculates the ratio of magnetic field lines passing through the generating coil, and an adjacent coil.
     a = coil.length/2
@@ -164,6 +150,20 @@ function couplingFactor(coil::Coil)::Float64 #May need to be changed. There's an
     denominator = 2 * (block(β1)-block(β2))
     return numerator/denominator
 end
+
+#TODO: Create a function that describes how a capacitor will supply voltage to a coil
+#Functions for current
+function coilCurrent(coil::Coil, position::Length, time::Time, maxVoltage::Voltage, characteristicTime::Time, resistance::ElectricalResistance)::Current #Fix: Turn coil off when proj. is > 2 coilOnRange away from coil
+    #The entry fields are intentionally left without specification due to its derivative being taken.
+    distFromCoil = coil.location - position
+    if (0m < distFromCoil) && (distFromCoil <= coil.coilOnRange)
+        return maxVoltage * (1-exp(-time / characteristicTime)) / resistance
+    elseif distFromCoil <= 0m
+        return maxVoltage * (2*exp(-time / characteristicTime)-1) / resistance
+    else
+        return maxVoltage/resistance - maxVoltage/resistance
+    end
+end
 function current(coil::Coil, totalΩ::ElectricalResistance, initialVoltage::Voltage, time::Time, magnetization::HField, velocity::Velocity, position::Length)::Current
     #This function calculates the current that is traveling through a coil. This is not taking operational amplifiers into consideration.
     𝓀 = couplingFactor(coil)
@@ -171,12 +171,12 @@ function current(coil::Coil, totalΩ::ElectricalResistance, initialVoltage::Volt
     projectileInducedCurrent = projectileInducedVoltage(coil, magnetization, velocity, position)/totalΩ
     return coilCurrent(coil, position|>m, time,initialVoltage,τ,totalΩ)|>A #+ projectileInducedCurrent |> A
 end
-function ∂Current(coil::Coil, time::Time, initialVoltage::Voltage, totalΩ::ElectricalResistance, position::Length, velocity::Velocity, acceleration::Acceleration, magnetization::HField)
+function ∂Current(coil::Coil, time::Time, initialVoltage::Voltage, totalΩ::ElectricalResistance, position::Length)
     #This function describes how the current through the coil changes with the change in time.
     𝓀 = couplingFactor(coil)
     τ = selfInductance(coil)*𝓀^2/totalΩ #Characteristic Time (Current reaches it's steady state value at 5*τ)
     distFromCoil = coil.location - position
-    ∂CoilVoltageRate = if (0m <= distFromCoil) && (distFromCoil <= coil.coilOnRange)
+    ∂CoilVoltageRate = if (0m < distFromCoil) && (distFromCoil <= coil.coilOnRange)
         initialVoltage * exp(-time / τ)/τ
     elseif distFromCoil <= 0m
         -2*initialVoltage * exp(-time / τ)/τ
@@ -240,30 +240,35 @@ function ∂BField_∂Current(coil::Coil, position::Length)
     #This function describes how the BField changes with respect to the change in current
     return bFieldCoil(coil, 1A, position)/1A
 end
+# function ∇BFieldCoil(coil::Coil, current::Current, position::Length)::CreatedUnits.BFieldGrad
+#     # This function describs the change in the magnetic field of a coil with the change in position
+#     innerRad = coil.innerRadius
+#     outerRad = coil.outerRadius
+#     length = coil.length
+#     crossSectionalArea = (outerRad - innerRad)*length
+#     constant = (μ0/(crossSectionalArea*(outerRad - innerRad)))
+#     farEdgeofCoil = coil.location - position + length/2
+#     closeEdgeofCoil = farEdgeofCoil - length
+#     variable(a) = a*(sqrt(a^2+(outerRad|>ustrip)^2)-sqrt(a^2 + (innerRad|>ustrip)^2))
+#     ∇variable(a::Length)::Length = -ForwardDiff.derivative(variable, a|>ustrip)m
+#     return constant*current*totalNumberWindings(coil)*(∇variable(farEdgeofCoil)-∇variable(closeEdgeofCoil)) |> T/m
+# end
 function bFieldCoil(coil::Coil, current::Current, position::Length)::BField
-    # This function describes how the magnetic field propagates around a 3-D coil
-    innerRad = coil.innerRadius
-    outerRad = coil.outerRadius
-    length = coil.length
-    crossSectionalArea = (outerRad - innerRad)*length
-    constant = μ0/(crossSectionalArea*(outerRad - innerRad))
-    α = coil.location - position + length/2
-    B = α - length
-    variable(a::Length) = a*(sqrt(a^2+outerRad^2)-sqrt(a^2 + innerRad^2))
-    return constant*current*totalNumberWindings(coil)*(variable(α)-variable(B)) |> T
+    constant = μ0*current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
+    logarithm(pos::Length)::Length = pos * log((sqrt(pos^2+coil.outerRadius^2)+coil.outerRadius)/(sqrt(pos^2+coil.innerRadius^2)+coil.innerRadius))
+    farEdgeofCoil = coil.location - position + coil.length/2
+    closeEdgeofCoil = farEdgeofCoil - coil.length
+    return constant * (logarithm(farEdgeofCoil) - logarithm(closeEdgeofCoil))
 end
 function ∇BFieldCoil(coil::Coil, current::Current, position::Length)::CreatedUnits.BFieldGrad
-    # This function describs the change in the magnetic field of a coil with the change in position
-    innerRad = coil.innerRadius
-    outerRad = coil.outerRadius
-    length = coil.length
-    crossSectionalArea = (outerRad - innerRad)*length
-    constant = (μ0/(crossSectionalArea*(outerRad - innerRad)))
-    α = coil.location - position + length/2
-    B = α - length
-    variable(a) = a*(sqrt(a^2+(outerRad|>ustrip)^2)-sqrt(a^2 + (innerRad|>ustrip)^2))
-    ∇variable(a::Length)::Length = -ForwardDiff.derivative(variable, a|>ustrip)m
-    return constant*current*totalNumberWindings(coil)*(∇variable(α)-∇variable(B)) |> T/m
+    constant = μ0*current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
+    outerRadius = coil.outerRadius |> m |>ustrip
+    innerRadius = coil.innerRadius |>m |> ustrip
+    logarithm(pos) = pos * log((sqrt(pos^2+outerRadius^2)+outerRadius)/(sqrt(pos^2+innerRadius^2)+innerRadius))
+    ∇logarithm(pos::Length)::Float64 = -ForwardDiff.derivative(logarithm,pos|>m|>ustrip)
+    farEdgeofCoil = coil.location - position + coil.length/2
+    closeEdgeofCoil = farEdgeofCoil - coil.length
+    return constant * (∇logarithm(farEdgeofCoil) - ∇logarithm(closeEdgeofCoil))
 end
 
 #The paper referenced for these following equations relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
@@ -272,56 +277,52 @@ function δ(inc::CreatedUnits.HFieldRate)::Int
 end
 function δM(proj::Projectile, bField::BField, Mag_irr::HField, inc::CreatedUnits.HFieldRate)::Int
     #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the and the anhysteris magnetization is the reversible magnetization. This function should take the values of 1 or 0.
-    Mrev = proj.magnetic.saturationMagnetization * ℒ(proj, bField, Mag_irr) - Mag_irr
+    Mrev = ℒ(proj, bField, Mag_irr) - Mag_irr
     dummyVar = abs(Mrev) < 1e-6A/m ? 1 : Mrev/δ(inc)
     return (1 + sign(dummyVar))/2
 end
-function Mag_irr(proj::Projectile, bField::BField, Mag_irr::HField, magnetization::HField)::HField
-    #This calculates the bulk irriversible magnetization inside the projectile.
-    return (magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr)*proj.magnetic.saturationMagnetization)/(1-proj.magnetic.reversibility)
-end
-function ∂Mag_irr_∂He(proj::Projectile, delta::Int, deltaM::Int, langevin::Float64, Mag_irr::HField)::Float64
-    return deltaM*(proj.magnetic.saturationMagnetization * langevin - Mag_irr)/(domainPinningFactor*delta)
-end
-function ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
+function ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::HField
     #langevin funciton that represents the anhystesis bulk magnetization for a given material. It can be imagined as a sigmoid shape on a M-H graph.
     a = k*roomTemp/magMomentPerDomain |>T  |> ustrip               #Constant
     effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*Mag_irr |> T |> ustrip#Variable
     taylorApproxℒ = effectiveBField/(3*a) - effectiveBField^3/(45*a^3)
-    return abs(effectiveBField/a) > 0.01 ? coth(effectiveBField/a) - a/effectiveBField : taylorApproxℒ
+    ans = abs(effectiveBField/a) > 0.01 ? coth(effectiveBField/a) - a/effectiveBField : taylorApproxℒ
+    return ans * proj.magnetic.saturationMagnetization
 end
 function ∂ℒ(proj::Projectile, bField::BField, Mag_irr::HField)::Float64
     #The first order derivative (with respect to the BField) of the ℒ function
-    a = k*roomTemp/magMomentPerDomain |>T  |> ustrip               #Constant
-    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*Mag_irr |>T |>ustrip  #Variable
-    ∂taylorApproxℒ = 1/(3*a) - effectiveBField^1/(15*a^3)
+    a = k*roomTemp/magMomentPerDomain |>T|>ustrip             #Constant
+    effectiveBField = bField+μ0*proj.magnetic.interdomainCoupling*Mag_irr |>T|>ustrip  #Variable
+    ∂taylorApproxℒ = 1/(3*a) - effectiveBField^2/(15*a^3)
     langevin(x) = coth(x/a) - a/x
-    return abs(effectiveBField/a) > 0.01 ? ForwardDiff.derivative(langevin,effectiveBField) : ∂taylorApproxℒ
+    ans = abs(effectiveBField/a) > 1e-6 ? ForwardDiff.derivative(langevin,effectiveBField)/1T : ∂taylorApproxℒ/1T
+    # println("∂ℒ :\t Mag_irr $(μ0*proj.magnetic.interdomainCoupling*Mag_irr),\tRatio: $(effectiveBField),\tans: $(ans),\ta: $(a)")
+    return ans * proj.magnetic.saturationMagnetization * μ0
+end
+function mag_Irr(proj::Projectile, bField::BField, Mag_irr::HField, magnetization::HField)::HField
+    #This calculates the bulk irriversible magnetization inside the projectile.
+    return (magnetization - proj.magnetic.reversibility * ℒ(proj,bField,Mag_irr))/(1-proj.magnetic.reversibility)
+end
+function ∂Mag_irr_∂He(proj::Projectile, bField::BField, Mag_irr::HField, ∂H::CreatedUnits.HFieldRate)::Float64
+    return δM(proj,bField,Mag_irr,∂H)*(ℒ(proj,bField,Mag_irr) - Mag_irr)/(domainPinningFactor)
+end
+function dHField(coils::Array{Coil,1}, voltage::Voltage, totalΩ::ElectricalResistance, ∇B::CreatedUnits.BFieldGrad, position::Length, velocity::Velocity, time::Time)::CreatedUnits.HFieldRate
+    #This function calculates the change in the HField due to the change in position and the change in current
+    return (∇B*velocity+sum(map(coil -> ∂BField_∂Current(coil,position)*∂Current(coil,time,voltage,totalΩ,position), coils)))/μ0|>A/m/s
 end
 
-#Fix
-function ∂HField(coils::Array{Coil,1}, voltage::Voltage, totalΩ::ElectricalResistance,∇B::CreatedUnits.BFieldGrad, magnetization::HField, position::Length, velocity::Velocity, acceleration::Acceleration, time::Time)::CreatedUnits.HFieldRate
-    #This function calculates the change in the HField due to the change in position and the change in current
-    return (∇B*velocity+sum(map(i -> ∂BField_∂Current(coils[i],position)*∂Current(coils[i],time,voltage,totalΩ,position,velocity,acceleration,magnetization), 1:length(coils))))/μ0|>A/m/s
-end
+#Somehow the rod is oversaturating
 function ∂Magnetization_∂HField(proj::Projectile, bField::BField, Mag_irr::HField, ∂H::CreatedUnits.HFieldRate)::Float64
     #Change in the objects magnetization due to an external B-Field.
-    ΔM_irr = ∂Mag_irr_∂He(proj, δ(∂H), δM(proj,bField,Mag_irr,∂H), ℒ(proj, bField, Mag_irr), Mag_irr)
-    numerator = ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr)
-    denominator = 1 - α * numerator
+    ΔM_irr = ∂Mag_irr_∂He(proj, bField, Mag_irr, ∂H)
+    numerator = ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * δ(∂H)
+    # println("∂Magnetization_∂HField:\tδ: $(δ(∂H))")
+    denominator = δ(∂H) - α * numerator
     return numerator/denominator
 end
-# function ∂Magnetization(proj::Projectile, bField::BField, Mag_irr::HField, velocity::Velocity, ∇B::CreatedUnits.BFieldGrad, coil::Coil)::HField
-#     #Change in the objects magnetization due to an external B-Field.
-#     ΔH = (∇B * velocity + simpleBField(coil, I - prevI, position)/t) * t / μ0
-#     ΔM_irr = (proj.magnetic.saturationMagnetization * ℒ(proj, bField,Mag_irr) - Mag_irr)
-#     numerator = δM(proj,bField,Mag_irr,ΔH) * ΔM_irr + proj.magnetic.reversibility * ∂ℒ(proj, bField, Mag_irr) * (domainPinningFactor*δ(ΔH))
-#     denominator = (domainPinningFactor*δ(ΔH)) - α * numerator
-#     return ΔH * numerator/denominator
-# end
 
 #Force Functions
-function dipoleCoilForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad, magnetization::HField)::Force
+function dipoleCoilForce(proj::Projectile, ∇BField::CreatedUnits.BFieldGrad, magnetization::HField)::Force #Update: Integrate mag over volume
     #This force function assumes a number of things. 1) The magnetization of the projectile is constant throughout the material. This means that all of the magnetic domains are consistent throughout the material. 2) The magnetic field experienced at the center of the projectile is the average magnetic field experienced by the projectile. 3) The magnetization of the material can be approximated as a magnetic dipole (loop would be more accurate, but this is easier).
     magneticDipoleMoment = magnetization * volume(proj)
     return magneticDipoleMoment * ∇BField|>N
@@ -354,7 +355,7 @@ export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, nu
     ProjectilePhysical, ProjectileMagnetic, bFieldGradient,magDomainVol,saturationMagnetizationFe, coilCrossSectionalArea, 
     meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, simpleBField, ∂Magnetization_∂HField, selfInductance, 
     projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , Mag_irr, ∂projectileInducedVoltage, 
-    ∂Current, acceleration, ∂BField_∂Current, ∂HField, bFieldCoil, ∇BFieldCoil, ProjectileCoilEvent,
+    ∂Current, acceleration, ∂BField_∂Current, dHField, bFieldCoil, ∇BFieldCoil, ProjectileCoilEvent,
     solveScenario, Scenario
 end
 #module
@@ -362,10 +363,5 @@ end
 """
 Reminder: The pearmeability inside the coil is dependent upon the projectile's position, and the magnetic field from the coil acts differently inside the projectile
 
--Calc inductance of coil (use for time constant L/R)
-
-Ferromagnetics doesn't have a linear susceptibility with an applied magnetic field and it's magnetization state if it isn't fully saturated. Meaning if the iron rod is fully saturated, the susceptibility is linear.
-
-Ignoring:
-domain rotation in k value for J-A model
+In order to maximize the force between the coil and the projectile, a moving sweet spot needs to be created. What this means is that the spot of highest gradient should stay at a constant distance from the projectile. The thinner the coils, the easier this can be accomplished. I would recommend investigating the optimal coil length in order to achieve this.
 """
