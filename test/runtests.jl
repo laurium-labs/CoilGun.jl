@@ -57,7 +57,6 @@ cthickness = 1inch |> m                 #The difference in the Inner diameter an
 coilLen = 0.5inch                    #The length of the Coil should be the exact length of the projectile
 coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter of the Coil
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
-I = 1A                                  #Current flowing through the wire
 resistor = 10Ω
 volts = 15V
 numberOfCoils = 10

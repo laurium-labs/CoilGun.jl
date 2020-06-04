@@ -1,10 +1,12 @@
 using DifferentialEquations
 
-function coiltime(t::Time, eventTimes::ProjectileCoilEvent)::Time
-    if !isnothing(eventTimes.entersActiveZone)
-        return t - eventTimes.entersActiveZone |>s 
-    elseif !isnothing(eventTimes.exitsActiveZone)
-        return t - eventTimes.exitsActiveZone |>s
+function coilTime(t::Time, eventTimes::ProjectileCoilEvent, ind::Int)::Time
+    if !isnothing(eventTimes.exitsActiveZone[ind])
+        # println("exitsActiveZone works")
+        return t - eventTimes.exitsActiveZone[ind]|>s
+    elseif !isnothing(eventTimes.entersActiveZone[ind])
+        # println("entersActiveZone works")
+        return t - eventTimes.entersActiveZone[ind] |>s 
     else
         return t
     end
@@ -39,17 +41,17 @@ function coilProblem!(du,u,scenario,time )
     foreach(1:length(scenario.coils)) do coilInd
         distanceFromCoil = scenario.coils[coilInd].location - position
         if distanceFromCoil <= scenario.coils[coilInd].coilOnRange && isnothing(scenario.eventTimes.entersActiveZone[coilInd])
-            println("\nEntered coil\t$(coilInd)\t with velocity:\t $(velocity),\t and coil efficiency of: $(velocity/coilInd)")
+            println("\nEntered coil\t$(coilInd)")
             scenario.eventTimes.entersActiveZone[coilInd] = t
         end
         if distanceFromCoil <= 0.0m && isnothing(scenario.eventTimes.exitsActiveZone[coilInd])
-            println("Exited coil\t$(coilInd)")
+            println("Exited coil\t$(coilInd)\t with velocity:\t $(velocity),\t and coil efficiency of: $(velocity/coilInd)")
             scenario.eventTimes.exitsActiveZone[coilInd] = t
         end
     end
-    I = map(i -> current(scenario.coils[i], totalΩ, scenario.voltage, t, magnetization, velocity, position), 1:length(scenario.coils))
-    H = sum(map(i -> hFieldCoil(scenario.coils[i], I[i], position), 1:length(I)))
-    ∇H = sum(map(i -> ∇HFieldCoil(scenario.coils[i], I[i], position), 1:length(I)))
+    curr = map(i -> current(scenario.coils[i], totalΩ, scenario.voltage, coilTime(t,scenario.eventTimes,i), magnetization, velocity, position), 1:length(scenario.coils))
+    H  = sum(map(i ->  hFieldCoil(scenario.coils[i], curr[i], position), 1:length(curr)))
+    ∇H = sum(map(i -> ∇HFieldCoil(scenario.coils[i], curr[i], position), 1:length(curr)))
     force = totalForce(scenario.proj, ∇H, velocity[1], magnetization[1])
     accel = (force/mass(scenario.proj)) |> m/(s^2)
     acceleration[1] = (accel) |> ustrip
@@ -57,6 +59,7 @@ function coilProblem!(du,u,scenario,time )
     dH = dHField(scenario.coils, scenario.voltage, totalΩ, ∇H, position, velocity, t)
     ∂MagIrr_∂t[1] = ∂Mag_irr_∂He(scenario.proj,H, magIrr, dH) * dH |> A/(m*s) |> ustrip
     ∂Mag_∂t[1] = ∂Magnetization_∂HField(scenario.proj, H, magIrr, dH) * dH |> A/(m*s) |> ustrip
+    # println("∂Mag_∂t:$(∂Mag_∂t[1]),\t∂Magnetization_∂HField:$(∂Magnetization_∂HField(scenario.proj, H, magIrr, dH)),\tdH:$(dH)")
     nothing
 end
 
