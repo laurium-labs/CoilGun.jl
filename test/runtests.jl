@@ -1,9 +1,9 @@
 using CoilGun
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
-using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, 
-                Inductance, ustrip, Voltage, Acceleration, Time, Velocity
+using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 using ForwardDiff
 using Plots
+using Test
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
@@ -59,7 +59,7 @@ coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter o
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
 resistor = 10Ω
 volts = 15V
-numberOfCoils = 10
+numberOfCoils = 3
 
 phys    = ProjectilePhysical(projrad,
                             projlength,
@@ -80,7 +80,7 @@ PCE.exitsActiveZone = [nothing for _ in coils]
 # t = 0s
 # Magirr = 0A/m
 # coil = coils[1]
-# totalΩ = resistor + resistance(coil)
+totalΩ = resistor + resistance(coils[1])
 # Curr = map(i ->CoilGun.current(coils[i], totalΩ, volts, t - eventTimes[1].entersActiveZone, magnetization, velocity, position), 1:length(coils))
 # I = Curr[1]
 # B = bFieldCoil(coil, I, position)
@@ -91,6 +91,7 @@ PCE.exitsActiveZone = [nothing for _ in coils]
 
 # ∂current = ∂Current(coil, t, volts, totalΩ, position, velocity, acceleration(totalForce(ip, ∇B, velocity, magnetization), mass(ip)), magnetization)
 # ∂BField_∂Current(coil, position)
+# include("unitTests.jl")
 
 endTime = 0.2s
 

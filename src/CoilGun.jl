@@ -4,7 +4,6 @@ module CreatedUnits
     using Unitful
     using Unitful: 𝐈, 𝐌, 𝐓, 𝐋 , T, m, A, s
     @derived_dimension HFieldGrad 𝐈*𝐋^-2
-    @derived_dimension Permeability 𝐈/𝐋^2
     @derived_dimension HFieldRate 𝐈*𝐋^-1*𝐓^-1
 
     @unit T_m "T/m" BFieldGradient 1T/m true
@@ -156,7 +155,6 @@ end
 function coilCurrent(coil::Coil, position::Length, time::Time, maxVoltage::Voltage, characteristicTime::Time, resistance::ElectricalResistance)::Current #Fix: Turn coil off when proj. is > 2 coilOnRange away from coil, negative time after coil reverses current
     #The entry fields are intentionally left without specification due to its derivative being taken.
     distFromCoil = coil.location - position
-    time = time < 0s ? 0s : time
     if (0m < distFromCoil) && (distFromCoil <= coil.coilOnRange)
         return maxVoltage * (1-exp(-time / characteristicTime)) / resistance
     elseif distFromCoil <= 0m
@@ -176,14 +174,15 @@ function ∂Current(coil::Coil, time::Time, initialVoltage::Voltage, totalΩ::El
     #This function describes how the current through the coil changes with the change in time.
     τ = selfInductance(coil)*couplingFactor(coil)^2/totalΩ #Characteristic Time (Current reaches it's steady state value at 5*τ)
     distFromCoil = coil.location - position
-    ∂CoilVoltageRate = if (0m < distFromCoil) && (distFromCoil <= coil.coilOnRange)
-        initialVoltage * exp(-time / τ)/τ
+    RateOfChange = if (0m < distFromCoil) && (distFromCoil <= coil.coilOnRange)
+        exp(-time / τ)/τ
     elseif distFromCoil <= 0m
-        -2*initialVoltage * exp(-time / τ)/τ
+        -2 * exp(-time / τ)/τ
     else
-        0V/s
+        0/s
     end
-    return ∂CoilVoltageRate/totalΩ|>A/s# + ∂projectileInducedVoltage(coil,position,velocity,acceleration,magnetization))/totalΩ |> A/s
+    # println("∂Current: ∂CoilVoltageRate $(∂CoilVoltageRate)")
+    return initialVoltage * RateOfChange/totalΩ|>A/s# + ∂projectileInducedVoltage(coil,position,velocity,acceleration,magnetization))/totalΩ |> A/s
 end
 
 # Functions for the magnetic field
@@ -193,11 +192,11 @@ function ∂HField_∂Current(coil::Coil, position::Length)
     return hFieldCoil(coil, 1A, position)/1A
 end
 function hFieldCoil(coil::Coil, current::Current, position::Length)::HField
-    constant = current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
+    constant = totalNumberWindings(coil)/coilCrossSectionalArea(coil)
     logarithm(pos::Length)::Length = pos * log((sqrt(pos^2+coil.outerRadius^2)+coil.outerRadius)/(sqrt(pos^2+coil.innerRadius^2)+coil.innerRadius))
     farEdgeofCoil = coil.location - position + coil.length/2
     closeEdgeofCoil = farEdgeofCoil - coil.length
-    return constant * (logarithm(farEdgeofCoil) - logarithm(closeEdgeofCoil))
+    return constant * current * (logarithm(farEdgeofCoil) - logarithm(closeEdgeofCoil)) |> A/m
 end
 function ∇HFieldCoil(coil::Coil, current::Current, position::Length)::CreatedUnits.HFieldGrad
     constant = current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
@@ -207,7 +206,8 @@ function ∇HFieldCoil(coil::Coil, current::Current, position::Length)::CreatedU
     ∇logarithm(pos::Length)::Float64 = -ForwardDiff.derivative(logarithm,pos|>m|>ustrip)
     farEdgeofCoil = coil.location - position + coil.length/2
     closeEdgeofCoil = farEdgeofCoil - coil.length
-    return constant * (∇logarithm(farEdgeofCoil) - ∇logarithm(closeEdgeofCoil))
+    # println("∇HFieldCoil: Current $(current),\tposition $(position),\t∇faredge $(∇logarithm(farEdgeofCoil))")
+    return constant * (∇logarithm(farEdgeofCoil) - ∇logarithm(closeEdgeofCoil)) |> A/m^2
 end
 
 #The paper referenced for these following equations relating to the magnetization of the projectile makes use of the Wiess mean Field theory in order to predict how the sample as a whole will react under a certain magnetic field.
@@ -225,18 +225,19 @@ function ℒ(proj::Projectile, hField::HField, mag_Irr::HField)::HField
     #langevin funciton that represents the anhystesis bulk magnetization for a given material. It can be imagined as a sigmoid shape on a M-H graph.
     a = k*roomTemp/magMomentPerDomain |>A/m  |> ustrip               #Constant
     effectiveHField = hField+proj.magnetic.interdomainCoupling*mag_Irr |> A/m |> ustrip#Variable
-    taylorApproxℒ = effectiveHField/(3*a) - effectiveHField^3/(45*a^3)
-    ans = abs(effectiveHField/a) > 0.01 ? coth(effectiveHField/a) - a/effectiveHField : taylorApproxℒ
+    taylorApproxℒ(x) = x/(3*a) - x^3/(45*a^3)
+    ans = abs(effectiveHField/a) > 0.01 ? coth(effectiveHField/a) - a/effectiveHField : taylorApproxℒ(effectiveHField)
+    # println("ℒ: $(ans * proj.magnetic.saturationMagnetization),\thField $(hField),\tmag_Irr $(mag_Irr)")
     return ans * proj.magnetic.saturationMagnetization
 end
 function ∂ℒ(proj::Projectile, hField::HField, mag_Irr::HField)::Float64
     #The first order derivative (with respect to the BField) of the ℒ function
     a = k*roomTemp/magMomentPerDomain |>A/m|>ustrip             #Constant
     effectiveHField = hField+proj.magnetic.interdomainCoupling*mag_Irr |>A/m|>ustrip  #Variable
-    ∂taylorApproxℒ = 1/(3*a) - effectiveHField^2/(15*a^3)
+    ∂taylorApproxℒ(x) = 1/(3*a) - x^2/(15*a^3)
     langevin(x) = coth(x/a) - a/x
-    ans = abs(effectiveHField/a) > 1e-6 ? ForwardDiff.derivative(langevin,effectiveHField)*1m/A : ∂taylorApproxℒ*1m/A
-    println("∂ℒ :\tmag_Irr $(mag_Irr),\tRatio: $(effectiveHField),\tans: $(ans),\ta: $(a)")
+    ans = abs(effectiveHField/a) > 1e-6 ? ForwardDiff.derivative(langevin,effectiveHField)*1m/A : ∂taylorApproxℒ(effectiveHField)*1m/A
+    # println("∂ℒ :\tmag_Irr $(mag_Irr),\tRatio: $(effectiveHField),\tans: $(ans),\thField: $(hField)")
     return ans * proj.magnetic.saturationMagnetization
 end
 function mag_Irr(proj::Projectile, hField::HField, mag_Irr::HField, magnetization::HField)::HField
@@ -247,10 +248,10 @@ function ∂Mag_irr_∂He(proj::Projectile, hField::HField, mag_Irr::HField, ∂
     # println("∂Mag_irr_∂He:\tℒ $(ℒ(proj,hField,mag_Irr)),\tmag_Irr $(mag_Irr)")
     return δM(proj,hField,mag_Irr,∂H)*(ℒ(proj,hField,mag_Irr) - mag_Irr)/(domainPinningFactor)
 end
-function dHField(coils::Array{Coil,1}, voltage::Voltage, totalΩ::ElectricalResistance, ∇H::CreatedUnits.HFieldGrad, position::Length, velocity::Velocity, time::Time)::CreatedUnits.HFieldRate
+function dHField(coils::Array{Coil,1}, voltage::Voltage, totalΩ::ElectricalResistance, ∇H::CreatedUnits.HFieldGrad, position::Length, velocity::Velocity, eventTimes::ProjectileCoilEvent, time::Time)::CreatedUnits.HFieldRate
     #This function calculates the change in the HField due to the change in position and the change in current
     # println("dHField:\t∇H*v:$(∇H*velocity),\t∂H_∂C:$(sum(map(coil -> ∂HField_∂Current(coil,position)*∂Current(coil,time,voltage,totalΩ,position), coils)))")
-    return ∇H*velocity+sum(map(coil -> ∂HField_∂Current(coil,position)*∂Current(coil,time,voltage,totalΩ,position), coils))|>A/m/s
+    return ∇H*velocity+sum(map(i -> ∂HField_∂Current(coils[i],position)*∂Current(coils[i],coilTime(time,eventTimes,i),voltage,totalΩ,position), 1:length(coils)))|>A/m/s
 end
 
 #Somehow the rod is oversaturating
