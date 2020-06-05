@@ -4,7 +4,7 @@ function coilTime(t::Time, eventTimes::ProjectileCoilEvent, ind::Int)::Time
     if !isnothing(eventTimes.exitsActiveZone[ind]) && t - eventTimes.exitsActiveZone[ind] >= 0s
         # println("exitsActiveZone works")
         return t - eventTimes.exitsActiveZone[ind]|>s
-    elseif !isnothing(eventTimes.entersActiveZone[ind]) && t - eventTimes.entersActiveZone[ind] >=0s
+    elseif !isnothing(eventTimes.entersActiveZone[ind]) && t - eventTimes.entersActiveZone[ind] >= 0s
         # println("entersActiveZone works")
         return t - eventTimes.entersActiveZone[ind] |>s 
     else
@@ -58,9 +58,9 @@ function coilProblem!(du,u,scenario,time )
     acceleration[1] = (accel) |> ustrip
     ∂Position_∂t[1] = velocity |> m/s |> ustrip
     dH = dHField(scenario.coils, scenario.voltage, totalΩ, ∇H, position, velocity, scenario.eventTimes, t)
-    # println("force $(force),\tmagnetization $(magnetization[1]),\tdH $(dH)")
-    ∂MagIrr_∂t[1] = ∂Mag_irr_∂He(scenario.proj,H, magIrr, dH) * dH |> A/(m*s) |> ustrip
-    ∂Mag_∂t[1] = ∂Magnetization_∂HField(scenario.proj, H, magIrr, dH) * dH |> A/(m*s) |> ustrip
+    # println("force $(force),\tmagnetization $(magnetization[1]),\tdH $(dH),\tvel:$(velocity)")
+    ∂MagIrr_∂t[1] = ∂Mag_irr_∂He(scenario.proj, H, magnetization, magIrr, dH) * dH |> A/(m*s) |> ustrip
+    ∂Mag_∂t[1] = ∂Magnetization_∂HField(scenario.proj, H, magnetization, magIrr, dH) * dH |> A/(m*s) |> ustrip
     # println("∂Mag_∂t:$(∂Mag_∂t[1]),\t∂Magnetization_∂HField:$(∂Magnetization_∂HField(scenario.proj, H, magIrr, dH)),\tdH:$(dH)")
     nothing
 end

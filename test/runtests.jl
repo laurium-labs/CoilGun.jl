@@ -29,7 +29,7 @@ const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity o
 projrad = 3.5mm |> m
 projlength = 1.0inch |> m
 position = 0m
-velocity = 0.01m/s
+velocity = 0.1m/s
 accel = 0m/s^2
 #Magnetic
 saturationMagnetization = 1.61e6A/m
@@ -38,7 +38,7 @@ const domainPinningFactor = 742.64A/m           # This is the domain pinning fac
 const α = 1.34e-3                               # Interdomain Coupling Factor from Ref.[5]
 const a = 882.55A/m                             # "Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
 const magMomentPerDomain = k*roomTemp/a         # This dipole magnetic moment from Ref.[5]
-magnetization = 0A/m
+magnetization = 2A/m
 magIrr = 0A/m
 println("Initial Parameters:\n\tposition:\t\t",position,
     "\n\tvelocity:\t\t", velocity,
@@ -54,12 +54,12 @@ blength = 0.5m |> m #Length of barrel
 #Coil Specifications
 innerRadius = projrad+bthickness        #The Inner diameter of the Coil needs to be the Outer diameter of the barrel
 cthickness = 1inch |> m                 #The difference in the Inner diameter and Outer diameter of the Coil
-coilLen = 0.5inch                    #The length of the Coil should be the exact length of the projectile
+coilLen = 0.5inch |> m                  #The length of the Coil should be the exact length of the projectile
 coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter of the Coil
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
 resistor = 10Ω
 volts = 15V
-numberOfCoils = 3
+numberOfCoils = 5
 
 phys    = ProjectilePhysical(projrad,
                             projlength,
@@ -92,6 +92,8 @@ totalΩ = resistor + resistance(coils[1])
 # ∂current = ∂Current(coil, t, volts, totalΩ, position, velocity, acceleration(totalForce(ip, ∇B, velocity, magnetization), mass(ip)), magnetization)
 # ∂BField_∂Current(coil, position)
 # include("unitTests.jl")
+# return
+# println("Finished Unit tests")
 
 endTime = 0.2s
 
