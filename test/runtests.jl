@@ -1,8 +1,9 @@
 using CoilGun
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
-using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, 
-                Inductance, ustrip, Voltage
+using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 using ForwardDiff
+using Plots
+using Test
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
@@ -17,22 +18,33 @@ const magPerFeAtom = currieTempFe*k/bohrMagnetonPerAtomFe   #This is the magneti
 const magPerFeDomain = magPerFeAtom*numberAtomsperDomainFe  #Magnetic field of the domain
 const χFe = 200_000                                         #Magnetic susceptibility of iron at 20 C (unitless)
 const μ = μ0*(1+χFe)                                        #Magnetic pearmeability of iron
-const α = 9.5e-5                                            #Interdomain Coupling Factor (for an iron transformer)
 const roomTemp = 293K                                       #Standard room Tempearture
-const domainPinningFactor = 150A/m                          #This is the domain pinning factor for Iron (transformer)
 const domainMagnetization = 0.2 * numberAtomsperDomainFe*bohrMagnetonPerAtomFe |> A/m #Magnetization of the domain
-const magMomentPerDomain = domainMagnetization*domainSizeFe^3    #This dipole magnetic moment doesn't take hysteresis/pinning into effect
 const saturationMagnetizationPerKgFe = 217.6A/(m*kg)             #Saturation magnetizaiton of pure Iron per unit mass.
-
-
+const kineticFrictionCoefficientFe = 0.36                   #Kinetic friction coefficient of Mild Steel on Copper, probably not exact
+const staticFrictionCoefficientFe = 0.53                    #Static friction coefficient of copper on Steel, probably not exact
+const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity of air at 20C
 #Projectile Specifications
+#Physical
 projrad = 3.5mm |> m
-projlength = 1inch |> m
-magdomiansize = 26.5μm |> m   #From literature, it is actually 26.5 nm, this value is not being used because I would have no memory left.
-magstrngth = 1T
-saturationMagnetization = saturationMagnetizationPerKgFe * magdomiansize^3 * densityFe
-position = projlength
-velocity = 1m/s
+projlength = 1.0inch |> m
+position = 0m   
+velocity = 0.1m/s
+accel = 0m/s^2
+#Magnetic
+saturationMagnetization = 1.61e6A/m
+reversibility = 0.373
+const domainPinningFactor = 742.64A/m           # This is the domain pinning factor from Ref.[5]
+const α = 1.34e-3                               # Interdomain Coupling Factor from Ref.[5]
+const a = 882.55A/m                             # "Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
+const magMomentPerDomain = k*roomTemp/a         # This dipole magnetic moment from Ref.[5]
+magnetization = 0A/m
+magIrr = 1A/m
+println("Initial Parameters:\n\tposition:\t\t",position,
+    "\n\tvelocity:\t\t", velocity,
+    "\n\tacceleration:\t\t", accel, 
+    "\n\tmagnetization:\t\t", magnetization)
+
 
 #Barrel Specifications
 bthickness = 1mm |> m #Barrel thickness
@@ -42,32 +54,73 @@ blength = 0.5m |> m #Length of barrel
 #Coil Specifications
 innerRadius = projrad+bthickness        #The Inner diameter of the Coil needs to be the Outer diameter of the barrel
 cthickness = 1inch |> m                 #The difference in the Inner diameter and Outer diameter of the Coil
-coilLen = projlength                    #The length of the Coil should be the exact length of the projectile
+coilLen = 0.5inch |> m                  #The length of the Coil should be the exact length of the projectile
 coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter of the Coil
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
-I = 1A                                  #Current flowing through the wire
-stepSize = 1_000
 resistor = 10Ω
-Volts = 15V
+volts = 15V
+numberOfCoils = 15
 
 phys    = ProjectilePhysical(projrad,
                             projlength,
                             densityFe)
 mag     = ProjectileMagnetic(domainSizeFe,
                             α,
-                            domainMagnetization,
-                            saturationMagnetization)
-ip      = IronProjectile(phys,mag,position, velocity)
+                            saturationMagnetization,
+                            reversibility)
+ip      = IronProjectile(phys,mag)
 bar     = Barrel(ip.physical.radius,bthickness,blength)
-coil    = Coil(projrad,projrad+cthickness,ip.physical.length,wirerad)
+coils = CoilGenerator(numberOfCoils, projrad, projrad+cthickness, coilLen, wirerad)
+PCE = ProjectileCoilEvent()
+PCE.entersActiveZone = [nothing for _ in coils]
+PCE.exitsActiveZone = [nothing for _ in coils]
 
 
-t=0.1s
-I = current(ip, coil, resistor, Volts, t)
+# Δt=0.1s
+# t = 0s
+# Magirr = 0A/m
+# coil = coils[1]
+totalΩ = resistor + resistance(coils[1])
+# Curr = map(i ->CoilGun.current(coils[i], totalΩ, volts, t - eventTimes[1].entersActiveZone, magnetization, velocity, position), 1:length(coils))
+# I = Curr[1]
+# B = bFieldCoil(coil, I, position)
+# ∇B = ∇BFieldCoil(coil, I, position)
+# Magirr = Mag_irr(ip, B, Magirr, magnetization)
+# dH = dHField(coils, volts, totalΩ,∇B, magnetization, position, velocity, accel, t) 
+# magnetization += ∂Magnetization_∂HField(ip, B, Magirr, dH) * dH * Δt
 
-B = simpleBField(coil, I, ip.position)
-∇B = bFieldGradient(coil, I, ip.position)
+# ∂current = ∂Current(coil, t, volts, totalΩ, position, velocity, acceleration(totalForce(ip, ∇B, velocity, magnetization), mass(ip)), magnetization)
+# ∂BField_∂Current(coil, position)
+# include("unitTests.jl")
+# return
+# println("Finished Unit tests")
 
-ip.magnetic.magnetization += ΔMagnetization(ip, B, 0.373, 1)
+endTime = 0.2s
 
-println(totalForce(ip,∇B))
+scenario = Scenario(
+    ip,
+    bar,
+    coils,
+    PCE,
+    endTime,
+    volts,
+    resistor,
+    magIrr,
+    position,
+    velocity,
+    magnetization
+)
+println("Now Solving...")
+sln = solveScenario(scenario)
+println("Length of Velocity:\t\t",length(sln[4,:]),"\nLength of Position:\t\t", length(sln[3,:]),"\nLength of Time:\t\t\t", length(sln[2,:]),"\nLength of Magnetization:\t", length(sln[1,:]))
+xAxis = 1:length(sln[1,:])
+figure(figsize=(8,6))
+p1 = plot(sln, vars=(0,2), title = "Displacement", ylabel = "[m]")
+p2 = plot(sln, vars=(0,3), title = "Velocity", ylabel = "[m/s]")
+p3 = plot(sln, vars=(0,1), title = "Magnetization", ylabel = "[A/m]", legend = false)
+p4 = plot(sln, vars=(0,4), title = "Irriversible Magnetization", ylabel = "[A/m]")
+display(plot(p1,p2,p3,p4, layout = (2,2)))
+# dist = coilLen|>m|>ustrip
+# println("Max Velocity $(sln[3,:][argmax(sln[3,:])])m/s")
+# println("Point were projectile started to accerate $(dist .- sln[2,:][argmin(sln[3,:])])m.\nPoint where projectile started to decelerate $(sln[2,:][argmax(sln[3,:])] .- dist)m")
+# plot(sln, layout = (2,2))
