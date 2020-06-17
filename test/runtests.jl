@@ -28,7 +28,7 @@ const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity o
 #Physical
 projrad = 3.5mm |> m
 projlength = 1.0inch |> m
-position = 0m
+position = 0m   
 velocity = 0.1m/s
 accel = 0m/s^2
 #Magnetic
@@ -38,8 +38,8 @@ const domainPinningFactor = 742.64A/m           # This is the domain pinning fac
 const α = 1.34e-3                               # Interdomain Coupling Factor from Ref.[5]
 const a = 882.55A/m                             # "Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
 const magMomentPerDomain = k*roomTemp/a         # This dipole magnetic moment from Ref.[5]
-magnetization = 2A/m
-magIrr = 0A/m
+magnetization = 0A/m
+magIrr = 1A/m
 println("Initial Parameters:\n\tposition:\t\t",position,
     "\n\tvelocity:\t\t", velocity,
     "\n\tacceleration:\t\t", accel, 
@@ -59,7 +59,7 @@ coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter o
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
 resistor = 10Ω
 volts = 15V
-numberOfCoils = 5
+numberOfCoils = 15
 
 phys    = ProjectilePhysical(projrad,
                             projlength,
@@ -70,7 +70,7 @@ mag     = ProjectileMagnetic(domainSizeFe,
                             reversibility)
 ip      = IronProjectile(phys,mag)
 bar     = Barrel(ip.physical.radius,bthickness,blength)
-coils = Coil(numberOfCoils, projrad, projrad+cthickness, coilLen, wirerad)
+coils = CoilGenerator(numberOfCoils, projrad, projrad+cthickness, coilLen, wirerad)
 PCE = ProjectileCoilEvent()
 PCE.entersActiveZone = [nothing for _ in coils]
 PCE.exitsActiveZone = [nothing for _ in coils]
@@ -114,12 +114,13 @@ println("Now Solving...")
 sln = solveScenario(scenario)
 println("Length of Velocity:\t\t",length(sln[4,:]),"\nLength of Position:\t\t", length(sln[3,:]),"\nLength of Time:\t\t\t", length(sln[2,:]),"\nLength of Magnetization:\t", length(sln[1,:]))
 xAxis = 1:length(sln[1,:])
+figure(figsize=(8,6))
 p1 = plot(sln, vars=(0,2), title = "Displacement", ylabel = "[m]")
 p2 = plot(sln, vars=(0,3), title = "Velocity", ylabel = "[m/s]")
-p3 = plot(sln, vars=(0,1), title = "Magnetization", ylabel = "[A/m]")
+p3 = plot(sln, vars=(0,1), title = "Magnetization", ylabel = "[A/m]", legend = false)
 p4 = plot(sln, vars=(0,4), title = "Irriversible Magnetization", ylabel = "[A/m]")
 display(plot(p1,p2,p3,p4, layout = (2,2)))
-dist = coilLen|>m|>ustrip
-println("Max Velocity $(sln[3,:][argmax(sln[3,:])])m/s")
-println("Point were projectile started to accerate $(dist .- sln[2,:][argmin(sln[3,:])])m.\nPoint where projectile started to decelerate $(sln[2,:][argmax(sln[3,:])] .- dist)m")
+# dist = coilLen|>m|>ustrip
+# println("Max Velocity $(sln[3,:][argmax(sln[3,:])])m/s")
+# println("Point were projectile started to accerate $(dist .- sln[2,:][argmin(sln[3,:])])m.\nPoint where projectile started to decelerate $(sln[2,:][argmax(sln[3,:])] .- dist)m")
 # plot(sln, layout = (2,2))
