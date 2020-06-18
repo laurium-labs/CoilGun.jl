@@ -46,6 +46,10 @@ println("Initial Parameters:\n\tposition:\t\t",position,
     "\n\tmagnetization:\t\t", magnetization)
 
 
+#create a default scenario for the solution here, will be able to add in changes from api, look at suana sim
+#call functions from api.jl to server.jl, have to figure out the output from there, 
+#add plots to front end with data exported, make front end look good, and ur done
+
 #Barrel Specifications
 bthickness = 1mm |> m #Barrel thickness
 blength = 0.5m |> m #Length of barrel
@@ -97,7 +101,7 @@ totalΩ = resistor + resistance(coils[1])
 
 endTime = 0.2s
 
-scenario = Scenario(
+default_scenario = Scenario(
     ip,
     bar,
     coils,
@@ -111,16 +115,18 @@ scenario = Scenario(
     magnetization
 )
 println("Now Solving...")
-sln = solveScenario(scenario)
+sln = solveScenario(default_scenario)
 println("Length of Velocity:\t\t",length(sln[4,:]),"\nLength of Position:\t\t", length(sln[3,:]),"\nLength of Time:\t\t\t", length(sln[2,:]),"\nLength of Magnetization:\t", length(sln[1,:]))
 xAxis = 1:length(sln[1,:])
-figure(figsize=(8,6))
+
+
+# figure(figsize=(8,6))
 p1 = plot(sln, vars=(0,2), title = "Displacement", ylabel = "[m]")
 p2 = plot(sln, vars=(0,3), title = "Velocity", ylabel = "[m/s]")
 p3 = plot(sln, vars=(0,1), title = "Magnetization", ylabel = "[A/m]", legend = false)
 p4 = plot(sln, vars=(0,4), title = "Irriversible Magnetization", ylabel = "[A/m]")
 display(plot(p1,p2,p3,p4, layout = (2,2)))
 # dist = coilLen|>m|>ustrip
-# println("Max Velocity $(sln[3,:][argmax(sln[3,:])])m/s")
+println("Max Velocity $(sln[3,:][argmax(sln[3,:])])m/s")
 # println("Point were projectile started to accerate $(dist .- sln[2,:][argmin(sln[3,:])])m.\nPoint where projectile started to decelerate $(sln[2,:][argmax(sln[3,:])] .- dist)m")
 # plot(sln, layout = (2,2))
