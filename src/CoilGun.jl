@@ -75,7 +75,7 @@ end
 #Functions relating to simple calculations:
 include("BasicFunctions.jl")
 
-include("api/api.jl")
+include("api.jl")
 
 #Equations relating to the calculation of current
 include("Current.jl")
