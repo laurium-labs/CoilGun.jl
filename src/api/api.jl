@@ -1,4 +1,3 @@
-using CoilGun
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
 using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 using ForwardDiff
@@ -120,6 +119,11 @@ p2 = plot(sln, vars=(0,3), title = "Velocity", ylabel = "[m/s]")
 p3 = plot(sln, vars=(0,1), title = "Magnetization", ylabel = "[A/m]", legend = false)
 p4 = plot(sln, vars=(0,4), title = "Irriversible Magnetization", ylabel = "[A/m]")
 display(plot(p1,p2,p3,p4, layout = (2,2)))
+
+function export_array(){
+   x= string(sln[1,:] , sln[2,:], sln[3,:], sln[4,:])
+   return x
+}
 # dist = coilLen|>m|>ustrip
 # println("Max Velocity $(sln[3,:][argmax(sln[3,:])])m/s")
 # println("Point were projectile started to accerate $(dist .- sln[2,:][argmin(sln[3,:])])m.\nPoint where projectile started to decelerate $(sln[2,:][argmax(sln[3,:])] .- dist)m")

@@ -75,6 +75,8 @@ end
 #Functions relating to simple calculations:
 include("BasicFunctions.jl")
 
+include("api/api.jl")
+
 #Equations relating to the calculation of current
 include("Current.jl")
 # Functions for the magnetic field
@@ -92,7 +94,7 @@ export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, nu
     meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, ∂Magnetization_∂HField, selfInductance, 
     projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , mag_Irr, ∂projectileInducedVoltage, 
     ∂Current, acceleration, ∂HField_∂Current, dHField, hFieldCoil, ∇HFieldCoil, ProjectileCoilEvent,
-    solveScenario, Scenario
+    solveScenario, Scenario, export_array
 end
 #module
 
