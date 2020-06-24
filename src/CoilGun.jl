@@ -89,13 +89,14 @@ acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 include("solver.jl")
 
 include("api/api.jl")
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, 
+println(dictionary_api())
+export dictionary_api,IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, 
     wireLength, area, volume, resistance, magDomainVol, ∂Mag_irr_∂He,ProjectilePhysical, ProjectileMagnetic, 
     magDomainVol,saturationMagnetizationFe, coilCrossSectionalArea, CoilGenerator,
     meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, ∂Magnetization_∂HField, selfInductance, 
     projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , mag_Irr, ∂projectileInducedVoltage, 
     ∂Current, acceleration, ∂HField_∂Current, dHField, hFieldCoil, ∇HFieldCoil, ProjectileCoilEvent,
-    solveScenario, Scenario, dictionary_api 
+    solveScenario, Scenario 
 end
 #module
 
