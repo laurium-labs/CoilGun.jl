@@ -1,10 +1,9 @@
 module CoilGunDefaults
-using CoilGun: Scenario, Coil, Barrel, CoilGenerator
-using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
-using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Acceleration, Time, Velocity
+using CoilGun: Barrel, CoilGenerator, resistance,  Scenario, IronProjectile, ProjectilePhysical, ProjectileMagnetic, ProjectileCoilEvent
+using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn, Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 
 struct NumberOfCoils
-    numberOfCoils::number
+    numberOfCoils::Int
 end
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
@@ -30,7 +29,7 @@ const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity o
 #Projectile Specifications
 #Physical
 projrad = 3.5mm |> m
-projlength = 1.0inch |> m
+projlength = 23mm |> m
 position = 0m   
 velocity = 0.1m/s
 accel = 0m/s^2
@@ -43,12 +42,14 @@ const a = 882.55A/m                             # "Determines the density distri
 const magMomentPerDomain = k*roomTemp/a         # This dipole magnetic moment from Ref.[5]
 magnetization = 0A/m
 magIrr = 1A/m
+resistor = 10Ω
+volts = 15V
 
 
 
 const default_barrel = let
     innerRadius = 1mm |> m
-    thickness = 10 mm |> m
+    thickness = 10mm |> m
     length= 0.5m |> m
     Barrel(
         innerRadius,
@@ -57,22 +58,10 @@ const default_barrel = let
         )
 end
 
-const default_coil = let
-    innerRadius = projrad+thickness 
-    outerRadius = 1inch |> m        #This governs how many layers of wires will be on the coil
-    length = 0.5inch |> m 
-    wireRadius = 1.6mm |> m      #This includes the insulation layer
-    location        #Global position of the coil
-    coilOnRange 
-    Coil(
-        innerRadius
-        outerRadius     #This governs how many layers of wires will be on the coil
-        length
-        wireRadius      #This includes the insulation layer
-        location        #Global position of the coil
-        coilOnRange 
-        )
-end
+    const innerRadius = projrad+10mm 
+    const outerRadius = 22.3mm |> m        #This governs how many layers of wires will be on the coil
+    const length = 11.15mm |> m 
+    const wireRadius = 1.6mm |> m      #This includes the insulation layer
 
 const default_number_of_coils = let
     numberOfCoils=15
@@ -81,7 +70,20 @@ const default_number_of_coils = let
     )
 end
 
-coils = CoilGenerator(numberOfCoils, projrad, projrad+cthickness, coilLen, wireRadius)
+
+phys    = ProjectilePhysical(projrad,
+                            projlength,
+                            densityFe)
+mag     = ProjectileMagnetic(domainSizeFe,
+                            α,
+                            saturationMagnetization,
+                            reversibility)
+ip      = IronProjectile(phys,mag)
+
+coils = CoilGenerator(default_number_of_coils.numberOfCoils, projrad, projrad+default_barrel.thickness, length, wireRadius)
+PCE = ProjectileCoilEvent()
+PCE.entersActiveZone = [nothing for _ in coils]
+PCE.exitsActiveZone = [nothing for _ in coils]
 totalΩ = resistor + resistance(coils[1])
 
 endTime = 0.2s
@@ -99,3 +101,4 @@ default_scenario = Scenario(
     velocity,
     magnetization
 )
+ end
