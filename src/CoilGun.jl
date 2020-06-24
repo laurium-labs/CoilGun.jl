@@ -90,7 +90,6 @@ include("solver.jl")
 
 #export data to server
 include("api/api.jl")
-println(dictionary_api())
 export dictionary_api,IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, 
     wireLength, area, volume, resistance, magDomainVol, ∂Mag_irr_∂He,ProjectilePhysical, ProjectileMagnetic, 
     magDomainVol,saturationMagnetizationFe, coilCrossSectionalArea, CoilGenerator,
