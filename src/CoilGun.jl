@@ -89,7 +89,6 @@ acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 include("solver.jl")
 
 include("api/api.jl")
-
 export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, 
     wireLength, area, volume, resistance, magDomainVol, ∂Mag_irr_∂He,ProjectilePhysical, ProjectileMagnetic, 
     magDomainVol,saturationMagnetizationFe, coilCrossSectionalArea, CoilGenerator,
