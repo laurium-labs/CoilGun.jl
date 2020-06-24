@@ -12,5 +12,5 @@ function extract_results(sln)
      displacement = sln[2,:]
 
     #body = Dict("time"=>stripped_time_core, "temperature" => stripped_temperature_core)
-    result_dict = Dict("velocity" => velocity, "magnetization" => magentization, "irreversibleMagentization"=>irreversibleMagentization,"displacement"=> displacement)
+    result_dict = Dict("velocity" => velocity, "magnetization" => magnetization, "irreversibleMagentization"=>irreversibleMagentization,"displacement"=> displacement)
 end
