@@ -88,6 +88,7 @@ acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 
 include("solver.jl")
 
+#export data to server
 include("api/api.jl")
 println(dictionary_api())
 export dictionary_api,IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, 
