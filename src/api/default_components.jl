@@ -86,7 +86,7 @@ PCE.entersActiveZone = [nothing for _ in coils]
 PCE.exitsActiveZone = [nothing for _ in coils]
 totalΩ = resistor + resistance(coils[1])
 
-endTime = 0.2s
+endTime = 1s
 
 default_scenario = Scenario(
     ip,
