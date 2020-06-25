@@ -101,7 +101,7 @@ default_scenario = Scenario(
     velocity,
     magnetization
 )
-
+println(default_scenario)
 function solve_senario(scenario::Scenario)
     return solveScenario(scenario)
 end
