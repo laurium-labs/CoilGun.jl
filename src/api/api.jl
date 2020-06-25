@@ -16,7 +16,7 @@ function apply_json_mutations(object::Any, json::Dict)
     end
     return typeof(object)(new_fields...)
 end
-function dictionary_api()#dictionary_Coil_specification::Dict)::Dict
+function dictionary_api(dictionary_Coil_specification::Dict)::Dict
     scenario=apply_json_mutations(CoilGunDefaults.default_scenario, dictionary_Coil_specification)
     return scenario
     # extract_results(CoilGunDefaults.solve_senario(scenario))
