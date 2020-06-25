@@ -18,8 +18,7 @@ function apply_json_mutations(object::Any, json::Dict)
 end
 function dictionary_api(dictionary_Coil_specification::Dict)::Dict
     scenario=apply_json_mutations(CoilGunDefaults.default_scenario, dictionary_Coil_specification)
-    return scenario
-    # extract_results(CoilGunDefaults.solve_senario(scenario))
+     extract_results(CoilGunDefaults.solve_senario(scenario))
     # x=rand(40)
     # return string(x)
 end
