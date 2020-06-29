@@ -96,7 +96,7 @@ export dictionary_api,IronProjectile, NickelProjectile, Coil, Barrel, volume, ma
     meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, ∂Magnetization_∂HField, selfInductance, 
     projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , mag_Irr, ∂projectileInducedVoltage, 
     ∂Current, acceleration, ∂HField_∂Current, dHField, hFieldCoil, ∇HFieldCoil, ProjectileCoilEvent,
-    solveScenario, Scenario 
+    solveScenario, Scenario, get_default_scenario_json
 end
 #module
 

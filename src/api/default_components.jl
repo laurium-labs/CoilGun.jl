@@ -60,9 +60,12 @@ end
 
     const innerRadius = projrad+10mm 
     const outerRadius = 22.3mm |> m        #This governs how many layers of wires will be on the coil
-    const length = 11.15mm |> m 
+    length = 11.15mm |> m 
     const wireRadius = 1.6mm |> m      #This includes the insulation layer
 
+    function tree(num::Int)
+        length = num
+    end
 const default_number_of_coils = let
     numberOfCoils=15
     NumberOfCoils(
