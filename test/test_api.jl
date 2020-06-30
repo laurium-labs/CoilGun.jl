@@ -4,4 +4,5 @@ const barrel_Length = "CCoilGun.Scenario(CoilGun.IronProjectile(CoilGun.Projecti
 const coil_Length = "coilLength" => 100
 const barrel_thickness = "barrelThickness" => 100
 const coil_wire_radius = "coilWireRadius" => 100
-get_default_scenario_json()
+println("HIII")
+println("HHEEERREE",get_default_scenario_json(), "EEENNNNDNNDDD")
