@@ -2,9 +2,6 @@ module CoilGunDefaults
 using CoilGun: Barrel, CoilGenerator, resistance,  Scenario, IronProjectile, ProjectilePhysical, ProjectileMagnetic, ProjectileCoilEvent, solveScenario
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn, Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 
-struct NumberOfCoils
-    numberOfCoils::Int
-end
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
 const densityFe = 7750kg/m^3                                #Density of pure Iron
@@ -66,12 +63,8 @@ end
     function tree(num::Int)
         length = num
     end
-const default_number_of_coils = let
     numberOfCoils=15
-    NumberOfCoils(
-        numberOfCoils
-    )
-end
+
 
 
 phys    = ProjectilePhysical(projrad,
@@ -83,7 +76,7 @@ mag     = ProjectileMagnetic(domainSizeFe,
                             reversibility)
 ip      = IronProjectile(phys,mag)
 
-coils = CoilGenerator(default_number_of_coils.numberOfCoils, projrad, projrad+default_barrel.thickness, length, wireRadius)
+coils = CoilGenerator(numberOfCoils, projrad, projrad+default_barrel.thickness, length, wireRadius)
 PCE = ProjectileCoilEvent()
 PCE.entersActiveZone = [nothing for _ in coils]
 PCE.exitsActiveZone = [nothing for _ in coils]
@@ -104,7 +97,7 @@ default_scenario = Scenario(
     velocity,
     magnetization
 )
-function solve_senario(scenario::Scenario)
-    return solveScenario(scenario)
+function solve_senario(scenario)
+    solveScenario(scenario)
 end
- end
+end

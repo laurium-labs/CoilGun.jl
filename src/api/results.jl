@@ -8,9 +8,8 @@ function extract_results(sln)
     velocity = sln[3,:]
     magnetization= sln[1,:]
     irreversibleMagentization=sln[4,:]
-    # time=sln[0,:]
+     #time=sln[0,:] not availible
      displacement = sln[2,:]
 
-    #body = Dict("time"=>stripped_time_core, "temperature" => stripped_temperature_core)
     result_dict = Dict("velocity" => velocity, "magnetization" => magnetization, "irreversibleMagentization"=>irreversibleMagentization,"displacement"=> displacement)
 end
