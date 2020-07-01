@@ -44,7 +44,7 @@ volts = 15V
 
 
 
-const default_barrel = let
+ barrel = let
     innerRadius = 1mm |> m
     thickness = 10mm |> m
     length= 0.5m |> m
@@ -59,10 +59,6 @@ end
     const outerRadius = 22.3mm |> m        #This governs how many layers of wires will be on the coil
     length = 11.15mm |> m 
     const wireRadius = 1.6mm |> m      #This includes the insulation layer
-
-    function tree(num::Int)
-        length = num
-    end
     numberOfCoils=15
 
 
@@ -76,7 +72,7 @@ mag     = ProjectileMagnetic(domainSizeFe,
                             reversibility)
 ip      = IronProjectile(phys,mag)
 
-coils = CoilGenerator(numberOfCoils, projrad, projrad+default_barrel.thickness, length, wireRadius)
+coils = CoilGenerator(numberOfCoils, projrad, projrad+barrel.thickness, length, wireRadius)
 PCE = ProjectileCoilEvent()
 PCE.entersActiveZone = [nothing for _ in coils]
 PCE.exitsActiveZone = [nothing for _ in coils]
@@ -86,7 +82,7 @@ endTime = 1s
 
 default_scenario = Scenario(
     ip,
-    default_barrel,
+    barrel,
     coils,
     PCE,
     endTime,

@@ -7,6 +7,7 @@ function apply_json_mutations(object::Any, json::Dict)
         orig_field_value = getfield(object, field)
         if haskey(json, string(field))
             if orig_field_value isa Number
+                println(json[string(field)])
                 return typeof(orig_field_value)(json[string(field)])
             else
                 return apply_json_mutations(orig_field_value, json[string(field)])
@@ -37,7 +38,7 @@ end
 
 function dictionary_api(dictionary_Coil_specification::Dict)::Dict
      scenario=apply_json_mutations(CoilGunDefaults.default_scenario, dictionary_Coil_specification)
-     #println("1")
+     println("skipped")
      extract_results(CoilGunDefaults.solve_senario(scenario))
 end
 function get_default_scenario_json()::String
