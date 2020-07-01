@@ -1,7 +1,7 @@
 include("default_components.jl")
 include("results.jl")
 using JSON
-function apply_json_mutations(object::Any, json::Any)
+function apply_json_mutations(object::Any, json::Dict)
     # This function recreates `object` with any mutations from `json`
      new_fields = map(fieldnames(typeof(object))) do field
         orig_field_value = getfield(object, field)
@@ -35,7 +35,7 @@ function get_json_description(object::Any)
     return json
 end
 
-function dictionary_api(dictionary_Coil_specification)::Dict
+function dictionary_api(dictionary_Coil_specification::Dict)::Dict
      scenario=apply_json_mutations(CoilGunDefaults.default_scenario, dictionary_Coil_specification)
      #println("1")
      extract_results(CoilGunDefaults.solve_senario(scenario))
