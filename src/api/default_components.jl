@@ -1,7 +1,22 @@
 module CoilGunDefaults
-using CoilGun: Barrel, CoilGenerator, resistance,  Scenario, IronProjectile, ProjectilePhysical, ProjectileMagnetic, ProjectileCoilEvent, solveScenario
+using CoilGun: Barrel, CoilGenerator, resistance,  Scenario, IronProjectile, ProjectilePhysical, ProjectileMagnetic, ProjectileCoilEvent, solveScenario, Projectile
+using CoilGun: Coil, Barrel, ProjectileCoilEvent, Time, Voltage, ElectricalResistance, HField, Length, Velocity
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn, Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 
+struct UIScenario
+    ip::Projectile
+    phys::ProjectilePhysical
+    barrel::Barrel
+    coil::Coil
+    endTime::Time
+    voltage::Voltage
+    resistor::ElectricalResistance
+    initialMagIRR::HField
+    initalPosition::Length
+    initialVelocity::Velocity
+    initialMagnetization::HField
+    numberOfCoils::Int
+end
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper
 const densityFe = 7750kg/m^3                                #Density of pure Iron
@@ -38,9 +53,9 @@ const α = 1.34e-3                               # Interdomain Coupling Factor f
 const a = 882.55A/m                             # "Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
 const magMomentPerDomain = k*roomTemp/a         # This dipole magnetic moment from Ref.[5]
 magnetization = 0A/m
-magIrr = 1A/m
+initialMagIRR = 1A/m
 resistor = 10Ω
-volts = 15V
+voltage = 15V
 
 
 
@@ -53,6 +68,22 @@ volts = 15V
         thickness,
         length
         )
+end
+coil = let
+    innerRadius= projrad+10mm 
+    outerRadius= 22.3mm |> m     #This governs how many layers of wires will be on the coil
+    length = 11.15mm |> m
+    wireRadius = 1.6mm |> m       #This includes the insulation layer
+    location = 1mm |> m 
+    coilOnRange = 1mm |> m 
+    Coil(
+    innerRadius,
+    outerRadius,
+    length,
+    wireRadius,
+    location,
+    coilOnRange
+    )
 end
 
     const innerRadius = projrad+10mm 
@@ -72,28 +103,44 @@ mag     = ProjectileMagnetic(domainSizeFe,
                             reversibility)
 ip      = IronProjectile(phys,mag)
 
-coils = CoilGenerator(numberOfCoils, projrad, projrad+barrel.thickness, length, wireRadius)
-PCE = ProjectileCoilEvent()
-PCE.entersActiveZone = [nothing for _ in coils]
-PCE.exitsActiveZone = [nothing for _ in coils]
-totalΩ = resistor + resistance(coils[1])
+#coils = CoilGenerator(numberOfCoils, projrad, projrad+barrel.thickness, length, wireRadius)
+
 
 endTime = 1s
 
-default_scenario = Scenario(
+default_scenario = UIScenario(
     ip,
+    phys,
     barrel,
-    coils,
-    PCE,
+    coil,
     endTime,
-    volts,
+    voltage,
     resistor,
-    magIrr,
+    initialMagIRR,
     position,
     velocity,
-    magnetization
+    magnetization,
+    numberOfCoils
 )
-function solve_senario(scenario)
-    solveScenario(scenario)
+function solve_senario(scenario::UIScenario)
+    coils = CoilGenerator(scenario.numberOfCoils, scenario.phys.radius, scenario.phys.radius+scenario.barrel.thickness, scenario.coil.length, scenario.coil.wireRadius)
+    PCE = ProjectileCoilEvent()
+    PCE.entersActiveZone = [nothing for _ in coils]
+    PCE.exitsActiveZone = [nothing for _ in coils]
+    totalΩ = resistor + resistance(coils[1])
+    scenario_to_be_solved = Scenario(
+        scenario.ip,
+        scenario.barrel,
+        coils,
+        PCE,
+        scenario.endTime,
+        scenario.voltage,
+        scenario.resistor,
+        scenario.initialMagIRR,
+        scenario.initalPosition,
+        scenario.initialVelocity,
+        scenario.initialMagnetization,
+    )
+    solveScenario(scenario_to_be_solved)
 end
 end
