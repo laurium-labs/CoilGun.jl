@@ -122,7 +122,7 @@ default_scenario = UIScenario(
     magnetization,
     numberOfCoils
 )
-function solve_senario(scenario::UIScenario)
+function transform_scenario(scenario::UIScenario)::Scenario
     coils = CoilGenerator(scenario.numberOfCoils, scenario.phys.radius, scenario.phys.radius+scenario.barrel.thickness, scenario.coil.length, scenario.coil.wireRadius)
     PCE = ProjectileCoilEvent()
     PCE.entersActiveZone = [nothing for _ in coils]
@@ -141,6 +141,9 @@ function solve_senario(scenario::UIScenario)
         scenario.initialVelocity,
         scenario.initialMagnetization,
     )
+    return scenario_to_be_solved
+end
+function solve_senario(scenario_to_be_solved::Scenario)
     solveScenario(scenario_to_be_solved)
 end
 end

@@ -10,19 +10,19 @@ const barrel_Length = "CCoilGun.Scenario(CoilGun.IronProjectile(CoilGun.Projecti
 const coil_Length = "coilLength" => 100
 const barrel_thickness = "barrelThickness" => 100
 const coil_wire_radius = "coilWireRadius" => 100
-# dictionary_api(Dict("initialMagIRR"=>10, 
-# "proj.magnetic.saturationMagnetization"=>1610000,
-# "proj.physical.radius"=>0.004,
-# "endTime"=>4,
-# "initialMagnetization"=>0,
-# "barrel.thickness"=>0.399,
-# "barrel.innerRadius"=>0.001,
-# "resistor"=>10,
-# "proj.physical.density"=>7751,
-# "voltage"=>15,
-# "initalPosition"=>0,
-# "proj.physical.length"=>0.054,
-# "barrel.length"=>45,
-# "proj.magnetic.domainSize"=>0.00000265,
-# "initialVelocity"=>10))
- println(get_default_scenario_json())
+dictionary_api(Dict("initialMagIRR"=>10, 
+"proj.magnetic.saturationMagnetization"=>1610000,
+"proj.physical.radius"=>0.004,
+"endTime"=>4,
+"initialMagnetization"=>0,
+"barrel.thickness"=>0.399,
+"barrel.innerRadius"=>0.001,
+"resistor"=>10,
+"proj.physical.density"=>7751,
+"voltage"=>15,
+"initalPosition"=>0,
+"proj.physical.length"=>0.054,
+"barrel.length"=>45,
+"proj.magnetic.domainSize"=>0.00000265,
+"initialVelocity"=>10))
+ #println(get_default_scenario_json())

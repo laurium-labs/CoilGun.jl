@@ -40,9 +40,9 @@ function get_json_description(object::Any)
 end
 
 function dictionary_api(dictionary_Coil_specification::Dict)::Dict
-     scenario=apply_json_mutations(CoilGunDefaults.default_scenario, dictionary_Coil_specification)
-     println("skipped")
-     extract_results(CoilGunDefaults.solve_senario(scenario))
+     ui_scenario=apply_json_mutations(CoilGunDefaults.default_scenario, dictionary_Coil_specification)
+     scenario = CoilGunDefaults.transform_scenario(ui_scenario)
+     extract_results(CoilGunDefaults.solve_senario(scenario), scenario)
 end
 function get_default_scenario_json()::String
     return JSON.json(get_json_description(CoilGunDefaults.default_scenario))
