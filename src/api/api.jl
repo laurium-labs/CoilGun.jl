@@ -31,7 +31,7 @@ function get_json_description(object::Any)
             json[string(field)] = Dict("val" => orig_field_value.val, "unit" => unit_string)
         elseif typeof(orig_field_value) <:Int
             string_rep = string(orig_field_value)
-            json[string(field)] = Dict("val" => orig_field_value)
+            json[string(field)] = Dict("val" => orig_field_value, "unit"=>"")
         elseif !(orig_field_value isa Function)
             json[string(field)] = get_json_description(orig_field_value)
         end
