@@ -13,7 +13,7 @@ const coil_wire_radius = "coilWireRadius" => 100
 dictionary_api(Dict("initialMagIRR"=>10, 
 "proj.magnetic.saturationMagnetization"=>1610000,
 "proj.physical.radius"=>0.004,
-"endTime"=>4,
+"endTime"=>.78,
 "initialMagnetization"=>0,
 "barrel.thickness"=>0.399,
 "barrel.innerRadius"=>0.001,

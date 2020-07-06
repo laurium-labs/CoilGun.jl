@@ -1,6 +1,6 @@
 module CoilGunDefaults
 using CoilGun: Barrel, CoilGenerator, resistance,  Scenario, IronProjectile, ProjectilePhysical, ProjectileMagnetic, ProjectileCoilEvent, solveScenario, Projectile
-using CoilGun: Coil, Barrel, ProjectileCoilEvent, Time, Voltage, ElectricalResistance, HField, Length, Velocity
+using CoilGun: Coil, Barrel, ProjectileCoilEvent, Voltage, ElectricalResistance, HField, Length, Velocity
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn, Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 
 struct UIScenario
@@ -106,7 +106,7 @@ ip      = IronProjectile(phys,mag)
 #coils = CoilGenerator(numberOfCoils, projrad, projrad+barrel.thickness, length, wireRadius)
 
 
-endTime = 1s
+endTime = .2s
 
 default_scenario = UIScenario(
     ip,
