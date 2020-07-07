@@ -5,6 +5,7 @@ using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResis
 using ForwardDiff
 #using Plots
 using Test
+using Plots
 
 const resistivityCu = 1.72e-8m*Ω                            #Resistivity of Copper
 const densityCu = 8960kg/m^3                                #Density if pure Copper

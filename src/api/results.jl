@@ -6,5 +6,5 @@ function extract_results(sln, scenario::Scenario)
     irreversibleMagentization=sln[4,:]
     displacement = sln[2,:]
     endTime = ustrip(scenario.endTime)
-    result_dict = Dict( "velocity" => velocity, "magnetization" => magnetization, "irreversibleMagentization"=>irreversibleMagentization,"displacement"=> displacement,"endTime"=>endTime)
+    result_dict = Dict( "time"=> sln.t, "velocity" => velocity, "magnetization" => magnetization, "irreversibleMagentization"=>irreversibleMagentization,"displacement"=> displacement)
 end
