@@ -90,7 +90,7 @@ end
     const outerRadius = 22.3mm |> m        #This governs how many layers of wires will be on the coil
     length = 11.15mm |> m 
     const wireRadius = 1.6mm |> m      #This includes the insulation layer
-    numberOfCoils=15
+    numberOfCoils=4
 
 
 
