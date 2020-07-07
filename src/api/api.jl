@@ -7,7 +7,6 @@ function apply_json_mutations(object::Any, json::Dict)
         orig_field_value = getfield(object, field)
         if haskey(json, string(field))
             if orig_field_value isa Number
-                println(json[string(field)])
                 return typeof(orig_field_value)(json[string(field)])
             else
                 return apply_json_mutations(orig_field_value, json[string(field)])
