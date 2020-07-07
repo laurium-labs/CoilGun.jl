@@ -5,7 +5,6 @@ using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, �
 
 struct UIScenario
     ip::Projectile
-    phys::ProjectilePhysical
     barrel::Barrel
     coil::Coil
     endTime::Time
@@ -110,7 +109,6 @@ endTime = .2s
 
 default_scenario = UIScenario(
     ip,
-    phys,
     barrel,
     coil,
     endTime,
@@ -123,7 +121,7 @@ default_scenario = UIScenario(
     numberOfCoils
 )
 function transform_scenario(scenario::UIScenario)::Scenario
-    coils = CoilGenerator(scenario.numberOfCoils, scenario.phys.radius, scenario.phys.radius+scenario.barrel.thickness, scenario.coil.length, scenario.coil.wireRadius)
+    coils = CoilGenerator(scenario.numberOfCoils, scenario.ip.physical.radius, scenario.ip.physical.radius+scenario.barrel.thickness, scenario.coil.length, scenario.coil.wireRadius)
     PCE = ProjectileCoilEvent()
     PCE.entersActiveZone = [nothing for _ in coils]
     PCE.exitsActiveZone = [nothing for _ in coils]
