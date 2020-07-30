@@ -1,6 +1,6 @@
 #Equations relating to the calculation of current
 function selfInductance(coil::Coil)::Inductance #Fix for new coil Equation
-    #This is a simplified version for the self inductance of the coil. It is not taking into consideration the thickness (different layers) of the coil, or the varying magnetic fields that pass through each loop. This is just for approximation only. When working out the math, current drops out of the equation so here it is just some random value.
+    #This is a simplified version for the self inductance of the coil. It is not taking into consideration the thickness (different layers) of the coil, or the varying magnetic fields that pass through each loop. This is just for approximation only.
     iR = coil.innerRadius
     oR = coil.outerRadius
     length = coil.length

@@ -9,7 +9,6 @@ function δM(proj::Projectile, hField::HField, magnetization::HField, mag_Irr, i
     # println("δM:\tMrev $(Mrev)")
     dummyVar = abs(Mrev) < 1e-16A/m ? 1 : Mrev * δ(inc)
     return (1 + sign(dummyVar))/2
-
 end
 
 function ℒ(proj::Projectile, hField::HField, magnetization::HField)::HField
@@ -17,7 +16,7 @@ function ℒ(proj::Projectile, hField::HField, magnetization::HField)::HField
     a = k*roomTemp/magMomentPerDomain |>A/m  |> ustrip               #Constant
     effectiveHField = hField + proj.magnetic.interdomainCoupling * magnetization |> A/m |> ustrip  #Variable
     taylorApproxℒ(x) = x/(3*a) - x^3/(45*a^3)
-    ans = abs(effectiveHField/a) > 0.01 ? coth(effectiveHField/a) - a/effectiveHField : taylorApproxℒ(effectiveHField)
+    ans = abs(effectiveHField/a) > 1e-6 ? coth(effectiveHField/a) - a/effectiveHField : taylorApproxℒ(effectiveHField)
     # println("ℒ: $(ans * proj.magnetic.saturationMagnetization),\thField $(hField),\tmag_Irr $(mag_Irr)")
     return ans * proj.magnetic.saturationMagnetization
 end
@@ -40,7 +39,7 @@ end
 
 function ∂Mag_irr_∂He(proj::Projectile, hField::HField, magnetization::HField, mag_Irr, dH::CreatedUnits.HFieldRate)::Float64
     # println("∂Mag_irr_∂He:\tℒ $(ℒ(proj,hField,mag_Irr)),\tmag_Irr $(mag_Irr)")
-    return δM(proj,hField,magnetization, mag_Irr, dH)*(ℒ(proj,hField,magnetization) - mag_Irr)/(domainPinningFactor * δ(dH))
+    return (ℒ(proj,hField,magnetization) - mag_Irr)/(domainPinningFactor * δ(dH))
 end
 
 #Somehow the rod is oversaturating

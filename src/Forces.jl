@@ -1,5 +1,8 @@
 function dipoleCoilForce(proj::Projectile, ∇HField::CreatedUnits.HFieldGrad, magnetization::HField)::Force #Update: Integrate mag over volume
-    #This force function assumes a number of things. 1) The magnetization of the projectile is constant throughout the material. This means that all of the magnetic domains are consistent throughout the material. 2) The magnetic field experienced at the center of the projectile is the average magnetic field experienced by the projectile. 3) The magnetization of the material can be approximated as a magnetic dipole (loop would be more accurate, but this is easier).
+    #This force function assumes a number of things:
+    #1) The magnetization of the projectile is constant throughout the material. This means that all of the magnetic domains are consistent throughout the material.
+    #2) The magnetic field experienced at the center of the projectile is the average magnetic field experienced by the projectile.
+    #3) The magnetization of the material can be approximated as a magnetic dipole (loop would be more accurate, but this is easier).
     magneticDipoleMoment = magnetization * volume(proj)
     return magneticDipoleMoment * μ0 * ∇HField|>N
 end
