@@ -13,8 +13,9 @@ end
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn, 𝐈
 using Unitful: Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Velocity, Time, Acceleration
 using ForwardDiff
-using Unitful
+using Unitful 
 using DifferentialEquations
+
 
 
 include("Constants.jl")
@@ -75,6 +76,7 @@ end
 #Functions relating to simple calculations:
 include("BasicFunctions.jl")
 
+
 #Equations relating to the calculation of current
 include("Current.jl")
 # Functions for the magnetic field
@@ -86,13 +88,16 @@ include("Forces.jl")
 acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 
 include("solver.jl")
-export IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, 
+
+#export data to server
+include("api/api.jl")
+export dictionary_api,IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, 
     wireLength, area, volume, resistance, magDomainVol, ∂Mag_irr_∂He,ProjectilePhysical, ProjectileMagnetic, 
     magDomainVol,saturationMagnetizationFe, coilCrossSectionalArea, CoilGenerator,
     meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, ∂Magnetization_∂HField, selfInductance, 
     projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , mag_Irr, ∂projectileInducedVoltage, 
     ∂Current, acceleration, ∂HField_∂Current, dHField, hFieldCoil, ∇HFieldCoil, ProjectileCoilEvent,
-    solveScenario, Scenario
+    solveScenario, Scenario, get_default_scenario_json
 end
 #module
 
