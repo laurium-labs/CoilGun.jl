@@ -59,7 +59,7 @@ struct Coil
     length::Length
     wireRadius::Length      #This includes the insulation layer
     location::Length        #Global position of the coil
-    coilOnRange::Length   #section of barrel were coil is on
+    effectiveRange::Length   #range where the coil can affect the projectile
 end
 function CoilGenerator(numberOfCoils::Int, innerRadius::Length, outerRadius::Length, coilLength::Length, wireRadius::Length)
     return[Coil(innerRadius, outerRadius, coilLength, wireRadius, x*coilLength , 2*coilLength) for x in 1:numberOfCoils]
@@ -104,5 +104,5 @@ end
 """
 Reminder: The pearmeability inside the coil is dependent upon the projectile's position, and the magnetic field from the coil acts differently inside the projectile
 
-In order to maximize the force between the coil and the projectile, a moving sweet spot needs to be created. What this means is that the spot ofç highest gradient should stay at a constant distance from the projectile. The thinner the coils, the easier this can be accomplished. I would recommend investigating the optimal coil length in order to achieve this.
+In order to maximize the force between the coil and the projectile, a moving sweet spot needs to be created. What this means is that the spot of highest gradient should stay at a constant distance from the projectile. The thinner the coils, the easier this can be accomplished. I would recommend investigating the optimal coil length in order to achieve this.
 """

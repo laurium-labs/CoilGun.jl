@@ -10,6 +10,11 @@ function hFieldCoil(coil::Coil, current::Current, position::Length)::HField
     closeEdgeofCoil = farEdgeofCoil - coil.length
     return constant * current * (logarithm(farEdgeofCoil) - logarithm(closeEdgeofCoil)) |> A/m
 end
+
+function effectiveCoilRange(coil::Coil, current::Current, position::Length)
+    
+end
+
 function ∇HFieldCoil(coil::Coil, current::Current, position::Length)::CreatedUnits.HFieldGrad
     constant = current*totalNumberWindings(coil)/coilCrossSectionalArea(coil)
     outerRadius = coil.outerRadius |> m |>ustrip

@@ -42,7 +42,7 @@ function coilProblem!(du,u,scenario,time )
         distanceFromCoil = scenario.coils[coilInd].location - position
         reasonable = velocity/coilInd < 10m/s
         if reasonable
-            if distanceFromCoil <= scenario.coils[coilInd].coilOnRange && isnothing(scenario.eventTimes.entersActiveZone[coilInd])
+            if distanceFromCoil <= scenario.coils[coilInd].effectiveRange && isnothing(scenario.eventTimes.entersActiveZone[coilInd])
                 println("\nEntered coil\t$(coilInd)")
                 scenario.eventTimes.entersActiveZone[coilInd] = t
             end

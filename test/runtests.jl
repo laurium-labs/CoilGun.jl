@@ -31,7 +31,7 @@ const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity o
 projrad = 3.5mm |> m
 projlength = 1.0inch |> m
 position = 0m   
-velocity = 0.1m/s
+velocity = 0.2m/s
 accel = 0m/s^2
 #Magnetic
 saturationMagnetization = 1.61e6A/m
@@ -61,7 +61,7 @@ coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter o
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
 resistor = 10Ω
 volts = 15V
-numberOfCoils = 10
+numberOfCoils = 20
 
 phys    = ProjectilePhysical(projrad,
                             projlength,
@@ -97,7 +97,7 @@ totalΩ = resistor + resistance(coils[1])
 # return
 # println("Finished Unit tests")
 
-endTime = 0.2s
+endTime = 0.15s
 
 scenario = Scenario(
     ip,

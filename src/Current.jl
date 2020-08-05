@@ -39,12 +39,12 @@ end
 
 #TODO: Create a function that describes how a capacitor will supply voltage to a coil
 #Functions for current
-function coilCurrent(coil::Coil, position::Length, time::Time, maxVoltage::Voltage, characteristicTime::Time, resistance::ElectricalResistance)::Current #Fix: Turn coil off when proj. is > 2 coilOnRange away from coil, negative time after coil reverses current
+function coilCurrent(coil::Coil, position::Length, time::Time, maxVoltage::Voltage, characteristicTime::Time, resistance::ElectricalResistance)::Current #Fix: Turn coil off when proj. is > 2 effectiveRange away from coil, negative time after coil reverses current
     #The entry fields are intentionally left without specification due to its derivative being taken.
     distFromCoil = coil.location - position
-    if (0m <= distFromCoil) && (distFromCoil <= coil.coilOnRange)
+    if (0m <= distFromCoil) && (distFromCoil <= coil.effectiveRange)
         return maxVoltage * (1-exp(-time / characteristicTime)) / resistance
-    elseif distFromCoil < 0m
+    elseif (distFromCoil < 0m) && (distFromCoil >= -coil.effectiveRange)
         return maxVoltage * (2*exp(-time / characteristicTime)-1) / resistance
     else
         return 0A
@@ -61,7 +61,7 @@ function ∂Current(coil::Coil, time::Time, initialVoltage::Voltage, totalΩ::El
     #This function describes how the current through the coil changes with the change in time.
     τ = selfInductance(coil)*couplingFactor(coil)^2/totalΩ #Characteristic Time (Current reaches it's steady state value at 5*τ)
     distFromCoil = coil.location - position
-    rateOfChange = if (0m <= distFromCoil) && (distFromCoil <= coil.coilOnRange)
+    rateOfChange = if (0m <= distFromCoil) && (distFromCoil <= coil.effectiveRange)
         exp(-time / τ)/τ
     elseif distFromCoil < 0m
         -2 * exp(-time / τ)/τ
