@@ -56,25 +56,19 @@ initialMagIRR = 1A/m
 resistor = 10Ω
 voltage = 15V
 
+const outerRadius = 22.3mm |> m        #This governs how many layers of wires will be on the coil
+clength = 1inch |> m
+bthickness = 1mm
+const wireRadius = 1.6mm |> m      #This includes the insulation layer
+numberOfCoils=4
 
-
- barrel = let
-    innerRadius = 1mm |> m
-    thickness = 10mm |> m
-    length= 0.5m |> m
-    Barrel(
-        innerRadius,
-        thickness,
-        length
-        )
-end
 coil = let
-    innerRadius= projrad+10mm 
-    outerRadius= 22.3mm |> m     #This governs how many layers of wires will be on the coil
-    length = 11.15mm |> m
+    innerRadius= projrad + bthickness
+    outerRadius= innerRadius + 1inch |> m     #This governs how many layers of wires will be on the coil
+    length = clength |> m
     wireRadius = 1.6mm |> m       #This includes the insulation layer
-    location = 1mm |> m 
-    coilOnRange = 1mm |> m 
+    location = 0.0mm |> m 
+    coilOnRange = 2*clength |> m 
     Coil(
     innerRadius,
     outerRadius,
@@ -85,13 +79,16 @@ coil = let
     )
 end
 
-    const innerRadius = projrad+10mm 
-    const outerRadius = 22.3mm |> m        #This governs how many layers of wires will be on the coil
-    length = 11.15mm |> m 
-    const wireRadius = 1.6mm |> m      #This includes the insulation layer
-    numberOfCoils=4
-
-
+barrel = let
+    binnerRadius = projrad |> m
+    thickness = bthickness |> m
+    blength= numberOfCoils*clength |> m
+    Barrel(
+        binnerRadius,
+        thickness,
+        blength
+        )
+end
 
 phys    = ProjectilePhysical(projrad,
                             projlength,

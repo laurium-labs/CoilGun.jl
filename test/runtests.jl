@@ -31,7 +31,7 @@ const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity o
 projrad = 3.5mm |> m
 projlength = 1.0inch |> m
 position = 0m   
-velocity = 0.2m/s
+velocity = 0.1m/s
 accel = 0m/s^2
 #Magnetic
 saturationMagnetization = 1.61e6A/m
@@ -47,13 +47,9 @@ println("Initial Parameters:\n\tposition:\t\t",position,
     "\n\tacceleration:\t\t", accel, 
     "\n\tmagnetization:\t\t", magnetization)
 
-
-#Barrel Specifications
-bthickness = 1mm |> m #Barrel thickness
-blength = 0.5m |> m #Length of barrel
-
-
 #Coil Specifications
+bthickness = 1mm |> m #Barrel thickness
+
 innerRadius = projrad+bthickness        #The Inner diameter of the Coil needs to be the Outer diameter of the barrel
 cthickness = 1inch |> m                 #The difference in the Inner diameter and Outer diameter of the Coil
 coilLen = 0.5inch |> m                  #The length of the Coil should be the exact length of the projectile
@@ -61,7 +57,11 @@ coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter o
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
 resistor = 10Ω
 volts = 15V
-numberOfCoils = 20
+numberOfCoils = 4
+
+#Barrel Specifications
+blength = numberOfCoils * coilLen |> m #Length of barrel
+bRadius = projrad
 
 phys    = ProjectilePhysical(projrad,
                             projlength,
@@ -71,7 +71,7 @@ mag     = ProjectileMagnetic(domainSizeFe,
                             saturationMagnetization,
                             reversibility)
 ip      = IronProjectile(phys,mag)
-bar     = Barrel(ip.physical.radius,bthickness,blength)
+bar     = Barrel(bRadius,bthickness,blength)
 coils = CoilGenerator(numberOfCoils, projrad, projrad+cthickness, coilLen, wirerad)
 PCE = ProjectileCoilEvent()
 PCE.entersActiveZone = [nothing for _ in coils]
@@ -97,7 +97,7 @@ totalΩ = resistor + resistance(coils[1])
 # return
 # println("Finished Unit tests")
 
-endTime = 0.15s
+endTime = 0.2s
 
 scenario = Scenario(
     ip,
