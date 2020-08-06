@@ -43,7 +43,7 @@ function coilProblem!(du,u,scenario,time )
         reasonable = velocity/coilInd < 10m/s
         if reasonable
             if distanceFromCoil <= scenario.coils[coilInd].effectiveRange && isnothing(scenario.eventTimes.entersActiveZone[coilInd])
-                println("\nEntered coil\t$(coilInd)")
+                println("\nCoil $(coilInd) turned on")
                 scenario.eventTimes.entersActiveZone[coilInd] = t
             end
             if distanceFromCoil <= 0.0m && isnothing(scenario.eventTimes.exitsActiveZone[coilInd])
