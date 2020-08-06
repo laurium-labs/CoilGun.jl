@@ -120,11 +120,9 @@ Where $\mu$ is the coefficient of fricition (either static of kinetic), $m$ is t
 ## Construction of the Coil Gun ##
 ### The Simulation
 The most critical aspect of this simulator is the simulation of a coil. So naturally, the simulation started by creating functions on how to calculate the physical aspects of the coil. Later functions like calculating the magnetic field produced from the coil were developed along with functions relating to how the magnetization of the projectile changed with the changing magnetic fields. From there the functions that decribed how a moving magnetized projectile interacted with the coil were developed including the induced voltage, and the force between the two (along with the resistance forces). The functions that described self-inductance and mutual inductances were then created and implemented. Up until this point, there was not enough functions to simulate the general characteristics of how the the projectile could be pulled through the coil, so it wasn't until after this point where the solver/simulator was created and developed (by Brent). After a simulation of a single coil was complete, then functions and changes to existing functions were performed in order to allow for multiple coils. Once any number of coils could be used in the simulation, the functions used to calculate the force and related aspects of the simulation got increasingly more complex to better match reality.
-## Results ##
 
-## Discussion ##
 ## Applications ## 
-The device itself can be used for a number of different applications. Some notable applications are: general construction, clearing computer memory, material testing, scientific demonstrations, etc, etc. The goal of this project is to accelerate the projectile to mach 1.
+The device itself can be used for a number of different applications. Some notable applications are: general construction, clearing computer memory, material testing, scientific demonstrations. The goal of this project is to accelerate the projectile to mach 1.
 #### Sources: ####
 
 [1] Jiles, D. C., & Atherton, D. L. (1986). Theory of ferromagnetic hysteresis. Journal of magnetism and magnetic materials, 61(1-2), 48-60.
