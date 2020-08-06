@@ -3,7 +3,7 @@ function δ(inc::CreatedUnits.HFieldRate)::Int
     return inc >= 0A/m/s ? 1 : -1
 end
 
-function δM(proj::Projectile, hField::HField, magnetization::HField, mag_Irr, inc::CreatedUnits.HFieldRate)::Int
+function δM(proj::Projectile, hField::HField, magnetization::HField, mag_Irr::HField, inc::CreatedUnits.HFieldRate)::Int
     #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the and the anhysteris magnetization is the reversible magnetization. This function should take the values of 1 or 0.
     Mrev = ℒ(proj, hField, magnetization) - mag_Irr
     # println("δM:\tMrev $(Mrev)")
@@ -37,7 +37,7 @@ function mag_Irr(proj::Projectile, hField::HField, magnetization::HField)::HFiel
     return (magnetization - proj.magnetic.reversibility * ℒ(proj,hField,magnetization))/(1-proj.magnetic.reversibility)
 end
 
-function ∂Mag_irr_∂He(proj::Projectile, hField::HField, magnetization::HField, mag_Irr, dH::CreatedUnits.HFieldRate)::Float64
+function ∂Mag_irr_∂He(proj::Projectile, hField::HField, magnetization::HField, mag_Irr::HField, dH::CreatedUnits.HFieldRate)::Float64
     # println("∂Mag_irr_∂He:\tℒ $(ℒ(proj,hField,mag_Irr)),\tmag_Irr $(mag_Irr)")
     return (ℒ(proj,hField,magnetization) - mag_Irr)/(domainPinningFactor * δ(dH))
 end

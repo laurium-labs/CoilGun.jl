@@ -52,7 +52,7 @@ bthickness = 1mm |> m #Barrel thickness
 
 innerRadius = projrad+bthickness        #The Inner diameter of the Coil needs to be the Outer diameter of the barrel
 cthickness = 1inch |> m                 #The difference in the Inner diameter and Outer diameter of the Coil
-coilLen = 0.5inch |> m                  #The length of the Coil should be the exact length of the projectile
+coilLen = 1.0inch |> m                  #The length of the Coil should be the exact length of the projectile
 coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter of the Coil
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
 resistor = 10Ω
