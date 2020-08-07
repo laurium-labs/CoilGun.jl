@@ -5,6 +5,7 @@ end
 
 function δM(proj::Projectile, hField::HField, magnetization::HField, mag_Irr::HField, inc::CreatedUnits.HFieldRate)::Int
     #This corrects for when the field is reversed, and the difference between the irriversible magnetization (Mag_irr) and the and the anhysteris magnetization is the reversible magnetization. This function should take the values of 1 or 0.
+    
     Mrev = ℒ(proj, hField, magnetization) - mag_Irr
     # println("δM:\tMrev $(Mrev)")
     dummyVar = abs(Mrev) < 1e-16A/m ? 1 : Mrev * δ(inc)
@@ -43,7 +44,7 @@ function ∂Mag_irr_∂He(proj::Projectile, hField::HField, magnetization::HFiel
 end
 
 #Somehow the rod is oversaturating
-function ∂Magnetization_∂HField(proj::Projectile, hField::HField, magnetization::HField, mag_Irr, dH::CreatedUnits.HFieldRate)::Float64
+function ∂Magnetization_∂HField(proj::Projectile, hField::HField, magnetization::HField, mag_Irr::HField, dH::CreatedUnits.HFieldRate)::Float64
     #Change in the objects magnetization due to an external B-Field.
     M_rev = δM(proj,hField,magnetization, mag_Irr,dH) * (ℒ(proj,hField,magnetization) - magnetization)
     numerator = M_rev + proj.magnetic.reversibility * ∂ℒ(proj, hField, magnetization) * (domainPinningFactor * δ(dH))

@@ -41,7 +41,7 @@ const α = 1.34e-3                               # Interdomain Coupling Factor f
 const a = 882.55A/m                             # "Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
 const magMomentPerDomain = k*roomTemp/a         # This dipole magnetic moment from Ref.[5]
 magnetization = 0A/m
-magIrr = 1A/m
+magIrr = 1.0A/m
 println("Initial Parameters:\n\tposition:\t\t",position,
     "\n\tvelocity:\t\t", velocity,
     "\n\tacceleration:\t\t", accel, 
@@ -72,7 +72,7 @@ mag     = ProjectileMagnetic(domainSizeFe,
                             reversibility)
 ip      = IronProjectile(phys,mag)
 bar     = Barrel(bRadius,bthickness,blength)
-coils = CoilGenerator(numberOfCoils, projrad, projrad+cthickness, coilLen, wirerad)
+coils = CoilGenerator(numberOfCoils, innerRadius, innerRadius+cthickness, coilLen, wirerad)
 PCE = ProjectileCoilEvent()
 PCE.entersActiveZone = [nothing for _ in coils]
 PCE.exitsActiveZone = [nothing for _ in coils]
@@ -112,6 +112,8 @@ scenario = Scenario(
     velocity,
     magnetization
 )
+
+@show scenario
 println("Now Solving...")
 sln = solveScenario(scenario)
 println("Length of Velocity:\t\t",length(sln[4,:]),"\nLength of Position:\t\t", length(sln[3,:]),"\nLength of Time:\t\t\t", length(sln[2,:]),"\nLength of Magnetization:\t", length(sln[1,:]))

@@ -40,10 +40,10 @@ const dynamicViscosityAir = 1.825e-5kg/(m*s)                #Dynamic viscosity o
 #Projectile Specifications
 #Physical
 projrad = 3.5mm |> m
-projlength = 23mm |> m
-position = 0m   
+projlength = 2.54cm |> m
+position = 0.0m   
 velocity = 0.1m/s
-accel = 0m/s^2
+accel = 0.0m/s^2
 #Magnetic
 saturationMagnetization = 1.61e6A/m
 reversibility = 0.373
@@ -51,28 +51,28 @@ const domainPinningFactor = 742.64A/m           # This is the domain pinning fac
 const α = 1.34e-3                               # Interdomain Coupling Factor from Ref.[5]
 const a = 882.55A/m                             # "Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
 const magMomentPerDomain = k*roomTemp/a         # This dipole magnetic moment from Ref.[5]
-magnetization = 0A/m
-initialMagIRR = 1A/m
+magnetization = 0.0A/m
+initialMagIRR= 1.0A/m
 resistor = 10Ω
 voltage = 15V
 
-const outerRadius = 22.3mm |> m        #This governs how many layers of wires will be on the coil
-clength = 1inch |> m
-bthickness = 1mm
-const wireRadius = 1.6mm |> m      #This includes the insulation layer
+# const outerRadius = 22.3mm |> m        #This governs how many layers of wires will be on the coil
+clength = 1.0inch |> m
+bthickness = 1.0mm
+# const wireRadius = 1.6mm |> m      #This includes the insulation layer
 numberOfCoils=4
 
 coil = let
     innerRadius= projrad + bthickness
-    outerRadius= innerRadius + 1inch |> m     #This governs how many layers of wires will be on the coil
-    length = clength |> m
+    outerRadius= innerRadius + 1.0inch |> m     #This governs how many layers of wires will be on the coil
+    lengthCoil = 1.0inch |> m
     wireRadius = 1.6mm |> m       #This includes the insulation layer
     location = 0.0mm |> m 
-    coilOnRange = 2*clength |> m 
+    coilOnRange = 2.0*lengthCoil |> m 
     Coil(
     innerRadius,
     outerRadius,
-    length,
+    lengthCoil,
     wireRadius,
     location,
     coilOnRange
@@ -118,7 +118,7 @@ default_scenario = UIScenario(
     numberOfCoils
 )
 function transform_scenario(scenario::UIScenario)::Scenario
-    coils = CoilGenerator(scenario.numberOfCoils, scenario.ip.physical.radius, scenario.ip.physical.radius+scenario.barrel.thickness, scenario.coil.length, scenario.coil.wireRadius)
+    coils = CoilGenerator(scenario.numberOfCoils, scenario.coil.innerRadius, scenario.coil.outerRadius, scenario.coil.length, scenario.coil.wireRadius)
     PCE = ProjectileCoilEvent()
     PCE.entersActiveZone = [nothing for _ in coils]
     PCE.exitsActiveZone = [nothing for _ in coils]
@@ -138,7 +138,7 @@ function transform_scenario(scenario::UIScenario)::Scenario
     )
     return scenario_to_be_solved
 end
-function solve_senario(scenario_to_be_solved::Scenario)
+function solve_scenario(scenario_to_be_solved::Scenario)
     solveScenario(scenario_to_be_solved)
 end
 end
