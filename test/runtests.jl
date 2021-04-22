@@ -3,6 +3,7 @@ using CoilGun: Coil, Barrel, ProjectileCoilEvent, Voltage, ElectricalResistance,
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn
 using Unitful:Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Acceleration, Time, Velocity
 using ForwardDiff
+using DifferentialEquations.EnsembleAnalysis: timestep_mean
 #using Plots
 using Test
 using Plots
@@ -40,7 +41,7 @@ const domainPinningFactor = 742.64A/m           # This is the domain pinning fac
 const α = 1.34e-3                               # Interdomain Coupling Factor from Ref.[5]
 const a = 882.55A/m                             # "Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
 const magMomentPerDomain = k*roomTemp/a         # This dipole magnetic moment from Ref.[5]
-magnetization = 0A/m
+magnetization = saturationMagnetization#1e-1A/m
 magIrr = 1.0A/m
 println("Initial Parameters:\n\tposition:\t\t",position,
     "\n\tvelocity:\t\t", velocity,
@@ -57,7 +58,7 @@ coilHght = 2.3e-2m |> m                 #Distance from inner to outer diameter o
 wirerad = 1.6mm |> m                    #The radius of 14-guage wire including insulation
 resistor = 10Ω
 volts = 15V
-numberOfCoils = 4
+numberOfCoils = 10
 
 #Barrel Specifications
 blength = numberOfCoils * coilLen |> m #Length of barrel
@@ -97,7 +98,7 @@ totalΩ = resistor + resistance(coils[1])
 # return
 # println("Finished Unit tests")
 
-endTime = 0.2s
+endTime = 0.16s
 
 scenario = Scenario(
     ip,
@@ -113,16 +114,14 @@ scenario = Scenario(
     magnetization
 )
 
-@show scenario
 println("Now Solving...")
 sln = solveScenario(scenario)
 println("Length of Velocity:\t\t",length(sln[4,:]),"\nLength of Position:\t\t", length(sln[3,:]),"\nLength of Time:\t\t\t", length(sln[2,:]),"\nLength of Magnetization:\t", length(sln[1,:]))
-xAxis = 1:length(sln[1,:])
 #figure(figsize=(8,6))
-p1 = plot(sln, vars=(0,2), title = "Displacement", ylabel = "[m]")
-p2 = plot(sln, vars=(0,3), title = "Velocity", ylabel = "[m/s]")
-p3 = plot(sln, vars=(0,1), title = "Magnetization", ylabel = "[A/m]", legend = false)
-p4 = plot(sln, vars=(0,4), title = "Irriversible Magnetization", ylabel = "[A/m]")
+p1 = plot(sln, vars=(0,1), ylabel = "[m]"  , title = "Displacement", legend = false)
+p2 = plot(sln, vars=(0,2), ylabel = "[m/s]", title = "Velocity", legend = false)
+p3 = plot(sln, vars=(0,4), ylabel = "[A/m]", title = "Magnetization", legend = false)
+p4 = plot(sln, vars=(0,3), ylabel = "[A/m]", title = "Irriversible Magnetization", legend = false)
 display(plot(p1,p2,p3,p4, layout = (2,2)))
 
 # dist = coilLen|>m|>ustrip
