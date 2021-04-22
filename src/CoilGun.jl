@@ -1,21 +1,29 @@
 module CoilGun
-
-module CreatedUnits
-    using Unitful
-    using Unitful: 𝐈, 𝐌, 𝐓, 𝐋 , T, m, A, s
-    @derived_dimension HFieldGrad 𝐈*𝐋^-2
-    @derived_dimension HFieldRate 𝐈*𝐋^-1*𝐓^-1
-
-    @unit T_m "T/m" BFieldGradient 1T/m true
-    @unit A_ms "A/m/s" HFieldRate 1A/(m*s)      true
-end
-
 using Unitful:Ω, m, cm, kg, g, A, N, Na, T, s, μ0, ϵ0, k, J, K, mol, me, q, ħ, μB, mm, inch, μm, H, V, gn, 𝐈
 using Unitful: Length, Mass, Current, Capacitance, Charge, Force, ElectricalResistance, BField, Volume, Area, Current, HField, MagneticDipoleMoment, Density, Inductance, ustrip, Voltage, Velocity, Time, Acceleration
 using ForwardDiff
-using Unitful 
-using DifferentialEquations
+using Unitful
 
+module CreatedUnits
+using Unitful
+using Unitful: 𝐈, 𝐌, 𝐓, 𝐋 , T, m, A, s
+@derived_dimension HFieldGrad 𝐈*𝐋^-2
+@derived_dimension HFieldRate 𝐈*𝐋^-1*𝐓^-1
+
+@unit T_m "T/m" BFieldGradient 1T/m true
+@unit A_ms "A/m/s" HFieldRate 1A/(m*s)      true
+end
+
+
+export IronProjectile
+export NickelProjectile
+export Coil
+export Barrel
+export ProjectilePhysical
+export ProjectileMagnetic
+export CoilGenerator
+export ProjectileCoilEvent
+export Scenario
 
 
 include("Constants.jl")
@@ -74,30 +82,62 @@ mutable struct ProjectileCoilEvent
 end
 
 #Functions relating to simple calculations:
+export volume
+export mass
+export density
+export magDomainVol
+export saturationMagnetizationFe
+export numberWindings
+export numberLayers
+export totalNumberWindings
+export wireLength
+export area
+export resistance
+export coilCrossSectionalArea
+export meanMagneticRadius
+export acceleration
 include("BasicFunctions.jl")
 
 
 #Equations relating to the calculation of current
+export ∂Current
+export current
+export ∂projectileInducedVoltage
+export projectileInducedVoltage
+export selfInductance
 include("Current.jl")
+
 # Functions for the magnetic field
+export ∂HField_∂Current
+export hFieldCoil
+export ∇HFieldCoil
+export dHField
 include("MagneticField.jl")
+
 # Functions for calculating material Magnetism
+export δ
+export δM
+export ℒ
+export ∂ℒ
+export mag_Irr
+export ∂Mag_irr_∂He
+export ∂Magnetization_∂HField
 include("Magnetization.jl")
 #Force Functions
-include("Forces.jl")
-acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
 
+export totalForce
+export dipoleCoilForce
+export frictionForce
+export airResistance
+include("Forces.jl")
+
+export solveScenario
 include("solver.jl")
 
 #export data to server
+export dictionary_api
+export get_default_scenario_json
 include("api/api.jl")
-export dictionary_api,IronProjectile, NickelProjectile, Coil, Barrel, volume, mass, density, numberWindings, numberLayers, 
-    wireLength, area, volume, resistance, magDomainVol, ∂Mag_irr_∂He,ProjectilePhysical, ProjectileMagnetic, 
-    magDomainVol,saturationMagnetizationFe, coilCrossSectionalArea, CoilGenerator,
-    meanMagneticRadius, ℒ, ∂ℒ, dipoleCoilForce, totalNumberWindings, ∂Magnetization_∂HField, selfInductance, 
-    projectileInducedVoltage, frictionForce, airResistance, current, totalForce, δ, δM , mag_Irr, ∂projectileInducedVoltage, 
-    ∂Current, acceleration, ∂HField_∂Current, dHField, hFieldCoil, ∇HFieldCoil, ProjectileCoilEvent,
-    solveScenario, Scenario, get_default_scenario_json
 end
 #module
 
