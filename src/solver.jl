@@ -1,14 +1,14 @@
-using DifferentialEquations
+using DifferentialEquations: ODEProblem, solve
 
-function coilTime(t::Time, eventTimes::ProjectileCoilEvent, ind::Int)::Time
-    if !isnothing(eventTimes.exitsActiveZone[ind]) && t - eventTimes.exitsActiveZone[ind] >= 0s
+function coilTime(t::Time, eventTimes::ProjectileCoilEvent, coilNumber::Int)::Time
+    return if !isnothing(eventTimes.exitsActiveZone[coilNumber]) && t - eventTimes.exitsActiveZone[coilNumber] >= 0s
         # println("exitsActiveZone works")
-        return t - eventTimes.exitsActiveZone[ind]|>s
-    elseif !isnothing(eventTimes.entersActiveZone[ind]) && t - eventTimes.entersActiveZone[ind] >= 0s
+        t - eventTimes.exitsActiveZone[coilNumber]|>s
+    elseif !isnothing(eventTimes.entersActiveZone[coilNumber]) && t - eventTimes.entersActiveZone[coilNumber] >= 0s
         # println("entersActiveZone works")
-        return t - eventTimes.entersActiveZone[ind] |>s 
+        t - eventTimes.entersActiveZone[coilNumber] |>s 
     else
-        return t
+        t
     end
 end
 
@@ -26,53 +26,51 @@ struct Scenario
     initialMagnetization::HField
 end 
 
-function coilProblem!(du,u,scenario,time )
-    magnetization   = (u[1])A/m
-    ∂Mag_∂t         = view(du, 1)
-    position        = (u[2])m
-    ∂Position_∂t    = view(du, 2)
-    velocity        = (u[3])m/s
-    acceleration    = view(du, 3)
-    magIrr          = (u[4])A/m
-    ∂MagIrr_∂t      = view(du, 4)
+function coilProblem!(du,u,scenario,time)
+    position        = (u[1])m
+    ∂Position_∂t    = view(du, 1)
+    velocity        = (u[2])m/s
+    acceleration    = view(du, 2)
+    magIrr          = (u[3])A/m
+    ∂MagIrr_∂t      = view(du, 3)
+    magnetization   = (u[4])A/m
+    ∂Mag_∂t         = view(du, 4)
     t               = (time)s
 
     totalΩ = scenario.resistor + resistance(scenario.coils[1])
-    foreach(1:length(scenario.coils)) do coilInd
-        distanceFromCoil = scenario.coils[coilInd].location - position
-        reasonable = velocity/coilInd < 10m/s
+    foreach(eachindex(scenario.coils)) do coilIndex
+        distanceFromCoil = scenario.coils[coilIndex].location - position
+        reasonable = velocity/coilIndex < 10m/s
         if reasonable
-            if distanceFromCoil <= scenario.coils[coilInd].effectiveRange && isnothing(scenario.eventTimes.entersActiveZone[coilInd])
-                println("\nCoil $(coilInd) turned on")
-                scenario.eventTimes.entersActiveZone[coilInd] = t
+            if distanceFromCoil <= scenario.coils[coilIndex].effectiveRange && isnothing(scenario.eventTimes.entersActiveZone[coilIndex])
+                println("\nCoil $(coilIndex) turned on")
+                scenario.eventTimes.entersActiveZone[coilIndex] = t
             end
-            if distanceFromCoil <= 0.0m && isnothing(scenario.eventTimes.exitsActiveZone[coilInd])
-                println("Exited coil\t$(coilInd)\t with velocity:\t $(velocity),\t and coil efficiency of: $(velocity/coilInd)")
-                scenario.eventTimes.exitsActiveZone[coilInd] = t
+            if distanceFromCoil <= 0.0m && isnothing(scenario.eventTimes.exitsActiveZone[coilIndex])
+                println("Exited coil\t$(coilIndex)\t with velocity:\t $(velocity) at time $(t),\t acceleration: $(acceleration)")
+                scenario.eventTimes.exitsActiveZone[coilIndex] = t
             end
         end
     end
-    curr = map(i -> current(scenario.coils[i], totalΩ, scenario.voltage,coilTime(t,scenario.eventTimes,i),magnetization,velocity,position),1:length(scenario.coils))
-    H  = sum(map(i ->  hFieldCoil(scenario.coils[i], curr[i], position), 1:length(curr)))
-    # ∇H = sum(map(i -> ∇HFieldCoil(scenario.coils[i], curr[i], position), 1:length(curr)))
-    Hnew = (sum(map(i ->  hFieldCoil(scenario.coils[i], curr[i], position + scenario.proj.physical.length/2), 1:length(curr))) - 
-            sum(map(i ->  hFieldCoil(scenario.coils[i], curr[i], position - scenario.proj.physical.length/2), 1:length(curr))))/scenario.coils[1].length
-    # println("∇H: $(H), v: $(velocity)")
-    force = totalForce(scenario.proj, Hnew, velocity[1], magnetization[1])
-    accel = (force/mass(scenario.proj)) |> m/(s^2)
-    acceleration[1] = (accel) |> ustrip
-    ∂Position_∂t[1] = velocity |> m/s |> ustrip
-    dH = dHField(scenario.coils, scenario.voltage, totalΩ, Hnew, position, velocity, scenario.eventTimes, t)
-    # println("force $(force),\tmagnetization $(magnetization[1]),\tdH $(dH),\tvel:$(velocity),\tposition:$(position)")
-    # magIrr = mag_Irr(scenario.proj,H,magnetization)
+    curr = map(i -> current(scenario.coils[i], totalΩ, scenario.voltage,coilTime(t,scenario.eventTimes,i),magnetization,velocity,position),eachindex(scenario.coils))
+    H  = sum(hFieldCoil( scenario.coils[i], curr[i], position) for i in eachindex(curr))
+    ∇H = sum(∇HFieldCoil(scenario.coils[i], curr[i], position) for i in eachindex(curr))
+    dH = dHField(scenario.coils, scenario.voltage, totalΩ, ∇H, position, velocity, scenario.eventTimes, t)
     dHe_dH = 1 + α * ∂Magnetization_∂HField(scenario.proj, H, magnetization, magIrr, dH)
-    ∂MagIrr_∂t[1] = ∂Mag_irr_∂He(scenario.proj, H, magnetization, magIrr, dH) * dHe_dH * dH |> A/(m*s) |> ustrip
-    ∂Mag_∂t[1] = ∂Magnetization_∂HField(scenario.proj, H, magnetization, magIrr, dH) * dH |> A/(m*s) |> ustrip
-    nothing
+    ∂Position_∂t[:] .= velocity |> ustrip
+    acceleration[:] .= totalForce(scenario.proj, ∇H, velocity, magnetization)/mass(scenario.proj) |> ustrip
+    ∂MagIrr_∂t[:]   .= ∂Mag_irr_∂He(scenario.proj, H, magnetization, magIrr, dH) * dHe_dH * dH |> A/(m*s) |> ustrip
+    ∂Mag_∂t[:]      .= ∂Magnetization_∂HField(scenario.proj, H, magnetization, magIrr, dH) * dH |> A/(m*s) |> ustrip
+    return nothing
 end
 
 function solveScenario(scenario::Scenario) 
-    u0 = [scenario.initialMagnetization |> A/m |> ustrip, scenario.initalPosition |> m |> ustrip, scenario.initialVelocity |> m/s |> ustrip, scenario.initialMagIRR |> A/m |> ustrip]
+    u0 = ustrip.([
+        scenario.initalPosition      |> m, 
+        scenario.initialVelocity     |> m/s, 
+        scenario.initialMagIRR       |> A/m,
+        scenario.initialMagnetization|> A/m 
+    ])
     tspan = (0.0, scenario.endTime |> s |> ustrip)
     problem = ODEProblem(coilProblem!, u0,tspan, scenario)
     return solve(problem, alg_hints = [:stiff])
