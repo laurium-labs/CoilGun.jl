@@ -16,3 +16,4 @@ mass(coil::Coil)::Mass                      = densityCu*volume(coil)
 resistance(coil::Coil)::ElectricalResistance= resistivityCu*wireLength(coil)/area(coil) |> Ω
 coilCrossSectionalArea(coil::Coil)::Area    = (coil.outerRadius - coil.innerRadius) * coil.length
 meanMagneticRadius(coil::Coil)::Length      = 2*coil.innerRadius*coil.outerRadius/(coil.innerRadius+coil.outerRadius)
+acceleration(force::Force, mass::Mass)::Acceleration = force/mass |>m/s^2
