@@ -10,7 +10,7 @@ function selfInductance(coil::Coil)::Inductance #Fix for new coil Equation
 end
 function projectileInducedVoltage(coil::Coil, magnetization::HField, velocity::Velocity, position::Length)::Voltage #Update:Includes face of coil, not depth
     position = position - coil.location
-    area = pi * (coil.outerRadius^2 - coil.innerRadius^2)
+    area = π * (coil.outerRadius^2 - coil.innerRadius^2)
     effectiveRadius = area/(coil.outerRadius - coil.innerRadius)
     ∂AreaRatio_∂t = effectiveRadius * velocity * position/(position^2 + effectiveRadius^2)^(3/2)
     constant = μ0 * magnetization * totalNumberWindings(coil) * area #includes #of windings because the BField is traveling through the windings.
@@ -42,12 +42,12 @@ end
 function coilCurrent(coil::Coil, position::Length, time::Time, maxVoltage::Voltage, characteristicTime::Time, resistance::ElectricalResistance)::Current #Fix: Turn coil off when proj. is > 2 effectiveRange away from coil, negative time after coil reverses current
     #The entry fields are intentionally left without specification due to its derivative being taken.
     distFromCoil = coil.location - position
-    if (0m <= distFromCoil) && (distFromCoil <= coil.effectiveRange)
-        return maxVoltage * (1-exp(-time / characteristicTime)) / resistance
+    return if (0m <= distFromCoil) && (distFromCoil <= coil.effectiveRange)
+        maxVoltage * (1-exp(-time / characteristicTime)) / resistance
     elseif (distFromCoil < 0m) && (distFromCoil >= -coil.effectiveRange)
-        return maxVoltage * (2*exp(-time / characteristicTime)-1) / resistance
+        maxVoltage * (2*exp(-time / characteristicTime)-1) / resistance
     else
-        return 0A
+        0A
     end
 end
 function current(coil::Coil, totalΩ::ElectricalResistance, initialVoltage::Voltage, time::Time, magnetization::HField, velocity::Velocity, position::Length)::Current
