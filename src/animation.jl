@@ -33,7 +33,7 @@ function revmagcoil(position, length, radius)
 end
 function coilevents(i)
     coilMid = ustrip(scenario.coils[i].location + scenario.coils[i].length/2 - scenario.proj.physical.length*1.5)
-    coilMidTime = LinearInterpolation(sln[2,:], sln.t).(coilMid)
+    coilMidTime = LinearInterpolation(sln[1,:], sln.t).(coilMid)
     coilTimes=[ustrip(scenario.eventTimes.entersActiveZone[i]),coilMidTime,ustrip(scenario.eventTimes.exitsActiveZone[i])]
     return coilTimes
 end
@@ -51,11 +51,11 @@ animscale=vidlength/(scenario.barrel.length+2*scenario.proj.physical.length)
 rangemax=length(sln.t)
 if trimtowindow
     rangemax = 1
-    while ustrip(sln[2, rangemax]*animscale) < vidlength
+    while ustrip(sln[1, rangemax]*animscale) < vidlength
         global rangemax+=1
     end
 end
-posfr=ustrip(LinearInterpolation(sln.t, sln[2,:]).(range(0,sln.t[rangemax],length=framecount))*animscale)
+posfr=ustrip(LinearInterpolation(sln.t, sln[1,:]).(range(0,sln.t[rangemax],length=framecount))*animscale)
 timescale=framecount/sln.t[rangemax]
 
 #generate objects
