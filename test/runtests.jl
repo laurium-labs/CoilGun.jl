@@ -41,7 +41,7 @@ const domainPinningFactor = 742.64A/m           # This is the domain pinning fac
 const α = 1.34e-3                               # Interdomain Coupling Factor from Ref.[5]
 const a = 882.55A/m                             # "Determines the density distribution of mag. domians"~Ref.[2] Ref.[5]
 const magMomentPerDomain = k*roomTemp/a         # This dipole magnetic moment from Ref.[5]
-magnetization = saturationMagnetization#1e-1A/m
+magnetization = 1e-1A/m
 magIrr = 1.0A/m
 println("Initial Parameters:\n\tposition:\t\t",position,
     "\n\tvelocity:\t\t", velocity,
