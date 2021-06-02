@@ -27,13 +27,13 @@ struct Scenario
 end 
 
 function coilProblem!(du,u,scenario,time)
-    position        = (u[1])m
+    position        = view(u , 1)m
     ∂Position_∂t    = view(du, 1)
-    velocity        = (u[2])m/s
+    velocity        = view(u , 2)m/s
     acceleration    = view(du, 2)
-    magIrr          = (u[3])A/m
+    magIrr          = view(u , 3)A/m
     ∂MagIrr_∂t      = view(du, 3)
-    magnetization   = (u[4])A/m
+    magnetization   = view(u , 4)A/m
     ∂Mag_∂t         = view(du, 4)
     t               = (time)s
 
@@ -47,7 +47,7 @@ function coilProblem!(du,u,scenario,time)
                 scenario.eventTimes.entersActiveZone[coilIndex] = t
             end
             if distanceFromCoil <= 0.0m && isnothing(scenario.eventTimes.exitsActiveZone[coilIndex])
-                println("Exited coil\t$(coilIndex)\t with velocity:\t $(velocity) at time $(t),\t acceleration: $(acceleration)")
+                println("Exited coil\t$(coilIndex)\t with velocity:\t $(velocity) at time $(t),\t acceleration: $(acceleration[1])")
                 scenario.eventTimes.exitsActiveZone[coilIndex] = t
             end
         end
@@ -57,6 +57,7 @@ function coilProblem!(du,u,scenario,time)
     ∇H = sum(∇HFieldCoil(scenario.coils[i], curr[i], position) for i in eachindex(curr))
     dH = dHField(scenario.coils, scenario.voltage, totalΩ, ∇H, position, velocity, scenario.eventTimes, t)
     dHe_dH = 1 + α * ∂Magnetization_∂HField(scenario.proj, H, magnetization, magIrr, dH)
+
     ∂Position_∂t[:] .= velocity |> ustrip
     acceleration[:] .= totalForce(scenario.proj, ∇H, velocity, magnetization)/mass(scenario.proj) |> ustrip
     ∂MagIrr_∂t[:]   .= ∂Mag_irr_∂He(scenario.proj, H, magnetization, magIrr, dH) * dHe_dH * dH |> A/(m*s) |> ustrip
