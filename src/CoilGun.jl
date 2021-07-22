@@ -132,12 +132,16 @@ export airResistance
 include("Forces.jl")
 
 export solveScenario
+export InitialConditions
 include("solver.jl")
+
+# include("MachineLearning.jl")
 
 #export data to server
 export dictionary_api
 export get_default_scenario_json
 include("api/api.jl")
+
 end
 #module
 

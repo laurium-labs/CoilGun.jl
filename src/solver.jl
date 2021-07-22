@@ -12,18 +12,22 @@ function coilTime(t::Time, eventTimes::ProjectileCoilEvent, coilNumber::Int)::Ti
     end
 end
 
+struct InitialConditions
+    initialMagIRR::HField
+    initalPosition::Length
+    initialVelocity::Velocity
+    initialMagnetization::HField
+end
 struct Scenario
     proj::Projectile
     barrel::Barrel
     coils::Array{Coil,1}
     eventTimes::ProjectileCoilEvent
-    endTime::Time
+    tspan
+    tsteps
     voltage::Voltage
     resistor::ElectricalResistance
-    initialMagIRR::HField
-    initalPosition::Length
-    initialVelocity::Velocity
-    initialMagnetization::HField
+    initial::InitialConditions
 end 
 
 function coilProblem!(du,u,scenario,time)
@@ -67,12 +71,11 @@ end
 
 function solveScenario(scenario::Scenario) 
     u0 = ustrip.([
-        scenario.initalPosition      |> m, 
-        scenario.initialVelocity     |> m/s, 
-        scenario.initialMagIRR       |> A/m,
-        scenario.initialMagnetization|> A/m 
+        scenario.initial.initalPosition      |> m, 
+        scenario.initial.initialVelocity     |> m/s, 
+        scenario.initial.initialMagIRR       |> A/m,
+        scenario.initial.initialMagnetization|> A/m 
     ])
-    tspan = (0.0, scenario.endTime |> s |> ustrip)
-    problem = ODEProblem(coilProblem!, u0,tspan, scenario)
-    return solve(problem, alg_hints = [:stiff])
+    problem = ODEProblem(coilProblem!, u0,scenario.tspan, scenario)
+    return solve(problem, alg_hints = [:stiff],saveat = scenario.tsteps)
 end

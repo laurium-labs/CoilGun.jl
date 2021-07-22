@@ -4,8 +4,11 @@ authors = ["Jason Lehto <jason@lauriumlabs.com>"]
 version = "0.1.0"
 
 [deps]
+DiffEqFlux = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+GalacticOptim = "a75be94c-b780-496d-a8a9-0878b188d577"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 Javis = "78b212ba-a7f9-42d4-b726-60726080707e"
