@@ -70,7 +70,7 @@ struct Coil
     effectiveRange::Length   #range where the coil can affect the projectile
 end
 function CoilGenerator(numberOfCoils::Int, innerRadius::Length, outerRadius::Length, coilLength::Length, wireRadius::Length)
-    return[Coil(innerRadius, outerRadius, coilLength, wireRadius, x*coilLength , 2*coilLength) for x in 1:numberOfCoils]
+    return[Coil(innerRadius, outerRadius, coilLength, wireRadius, x * coilLength , 2 * coilLength) for x in 1:numberOfCoils]
 end
 
 mutable struct ProjectileCoilEvent
@@ -123,8 +123,8 @@ export mag_Irr
 export ∂Mag_irr_∂He
 export ∂Magnetization_∂HField
 include("Magnetization.jl")
-#Force Functions
 
+#Force Functions
 export totalForce
 export dipoleCoilForce
 export frictionForce
