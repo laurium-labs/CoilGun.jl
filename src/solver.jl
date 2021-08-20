@@ -52,16 +52,16 @@ function coilProblem!(du,u,scenario,time)
             end
         end
     end
-    curr = map(i -> current(scenario.coils[i], totalΩ, scenario.voltage,coilTime(t,scenario.eventTimes,i),magnetization,velocity,position),eachindex(scenario.coils))
+    curr = map(i -> current(scenario.coils[i], totalΩ, scenario.voltage, coilTime(t,scenario.eventTimes,i), magnetization, velocity, position), eachindex(scenario.coils))
     H  = sum(hFieldCoil( scenario.coils[i], curr[i], position) for i in eachindex(curr))
     ∇H = sum(∇HFieldCoil(scenario.coils[i], curr[i], position) for i in eachindex(curr))
-    dH = dHField(scenario.coils, scenario.voltage, totalΩ, ∇H, position, velocity, scenario.eventTimes, t)
-    dHe_dH = 1 + α * ∂Magnetization_∂HField(scenario.proj, H, magnetization, magIrr, dH)
+    Ḣ = dHField(scenario.coils, scenario.voltage, totalΩ, ∇H, position, velocity, scenario.eventTimes, t)
+    dHe_dH = 1 + α * ∂Magnetization_∂HField(scenario.proj, H, magnetization, magIrr, Ḣ)
 
     ∂Position_∂t[:] .= velocity |> ustrip
     acceleration[:] .= totalForce(scenario.proj, ∇H, velocity, magnetization)/mass(scenario.proj) |> ustrip
-    ∂MagIrr_∂t[:]   .= ∂Mag_irr_∂He(scenario.proj, H, magnetization, magIrr, dH) * dHe_dH * dH |> A/(m*s) |> ustrip
-    ∂Mag_∂t[:]      .= ∂Magnetization_∂HField(scenario.proj, H, magnetization, magIrr, dH) * dH |> A/(m*s) |> ustrip
+    ∂MagIrr_∂t[:]   .= ∂Mag_irr_∂He(scenario.proj, H, magnetization, magIrr, Ḣ) * dHe_dH * Ḣ |> A/(m*s) |> ustrip
+    ∂Mag_∂t[:]      .= ∂Magnetization_∂HField(scenario.proj, H, magnetization, magIrr, Ḣ) * Ḣ |> A/(m*s) |> ustrip
     return nothing
 end
 
